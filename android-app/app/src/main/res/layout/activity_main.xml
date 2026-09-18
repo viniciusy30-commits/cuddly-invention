@@ -69,7 +69,7 @@
             android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
             android:elevation="4dp"
-            android:orientation="vertical">">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_1"
@@ -192,7 +192,7 @@
             android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
             android:elevation="4dp"
-            android:orientation="vertical">">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_2"
@@ -315,7 +315,7 @@
             android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
             android:elevation="4dp"
-            android:orientation="vertical">">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_3"
@@ -438,7 +438,7 @@
             android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
             android:elevation="4dp"
-            android:orientation="vertical">">
+            android:orientation="vertical">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_4"
