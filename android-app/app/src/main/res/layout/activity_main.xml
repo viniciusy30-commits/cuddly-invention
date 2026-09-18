@@ -231,7 +231,7 @@
                         <TextView
                             android:id="@+id/pane_subtitle_2"
                             style="@style/PaneSubtitle"
-                            android:text="Instância 1 • em execução" />
+                            android:text="Instância 2 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -354,7 +354,7 @@
                         <TextView
                             android:id="@+id/pane_subtitle_3"
                             style="@style/PaneSubtitle"
-                            android:text="Instância 1 • em execução" />
+                            android:text="Instância 3 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -477,7 +477,7 @@
                         <TextView
                             android:id="@+id/pane_subtitle_4"
                             style="@style/PaneSubtitle"
-                            android:text="Instância 1 • em execução" />
+                            android:text="Instância 4 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
