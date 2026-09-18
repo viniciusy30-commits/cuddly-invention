@@ -217,7 +217,15 @@
     </LinearLayout>
     </GridLayout>
 
-    <LinearLayout
+    <FrameLayout
+          android:id="@+id/fullscreen_overlay"
+          android:layout_width="match_parent"
+          android:layout_height="match_parent"
+          android:background="@color/pane_background"
+          android:elevation="3dp"
+          android:visibility="gone" />
+
+        <LinearLayout
         android:id="@+id/app_toolbar"
         android:layout_width="match_parent"
         android:layout_height="48dp"
