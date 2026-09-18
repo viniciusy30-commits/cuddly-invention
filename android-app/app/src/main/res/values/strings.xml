@@ -9,6 +9,10 @@
     <string name="fullscreen_exit">Voltar para os quatro navegadores</string>
     <string name="fullscreen_enter_symbol">⛶</string>
     <string name="fullscreen_exit_symbol">×</string>
+    <string name="theme_dark">Escuro</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
+    <string name="theme_switch_to_light">Mudar para o tema claro</string>
     <string name="webview_description_1">Navegador 1</string>
     <string name="webview_description_2">Navegador 2</string>
     <string name="webview_description_3">Navegador 3</string>
