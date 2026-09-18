@@ -67,11 +67,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
-        findViewById<ImageButton>(R.id.fullscreen_exit_overlay).setOnClickListener {
-            fullscreenPaneIndex = null
-            applyPaneLayout()
-        }
-        findViewById<ImageButton>(R.id.theme_toggle).apply {
+findViewById<ImageButton>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
             setOnClickListener { toggleTheme() }
         }
@@ -252,6 +248,7 @@ class MainActivity : AppCompatActivity() {
     private fun enterFullscreenPane(index: Int) {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val pane = panes[index]
+        findViewById<View>(R.id.app_toolbar).visibility = View.GONE
         if (pane.container.parent !== fullscreenOverlay) {
             (pane.container.parent as? ViewGroup)?.removeView(pane.container)
             fullscreenOverlay.addView(pane.container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -259,7 +256,7 @@ class MainActivity : AppCompatActivity() {
         grid.visibility = View.GONE
         fullscreenOverlay.visibility = View.VISIBLE
         pane.container.visibility = View.VISIBLE
-    panes.forEachIndexed { paneIndex, browserPane -> setFullscreenButtonState(browserPane, paneIndex == index) }
+        panes.forEachIndexed { paneIndex, browserPane -> setFullscreenButtonState(browserPane, paneIndex == index) }
         fullscreenOverlay.requestLayout()
     }
 
@@ -272,8 +269,8 @@ class MainActivity : AppCompatActivity() {
             grid.addView(pane.container, paneLayoutParams(selectedIndex))
         }
         fullscreenOverlay.visibility = View.GONE
-        findViewById<View>(R.id.fullscreen_exit_overlay).visibility = View.GONE
-        grid.visibility = View.VISIBLE
+        findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
+grid.visibility = View.VISIBLE
         panes.forEachIndexed { index, pane ->
             pane.container.visibility = View.VISIBLE
             applyPaneOpenUi(index, pane.isOpen)
@@ -287,9 +284,11 @@ class MainActivity : AppCompatActivity() {
     ).apply { width = 0; height = 0; setMargins(7, 7, 7, 7) }
 
     private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
-        pane.fullscreenButton.setImageResource(if (selected) R.drawable.ic_close else R.drawable.ic_expand)
-        pane.fullscreenButton.contentDescription = getString(if (selected) R.string.fullscreen_exit else R.string.fullscreen_enter)
-    }
+          pane.fullscreenButton.setImageResource(if (selected) R.drawable.ic_close else R.drawable.ic_expand)
+          pane.fullscreenButton.setBackgroundResource(if (selected) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
+          pane.fullscreenButton.setColorFilter(getColor(if (selected) R.color.danger else R.color.text_primary))
+          pane.fullscreenButton.contentDescription = getString(if (selected) R.string.fullscreen_exit else R.string.fullscreen_enter)
+      }
 
     private fun toggleTheme() {
         isDarkTheme = !isDarkTheme
