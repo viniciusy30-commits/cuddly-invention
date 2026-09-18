@@ -20,6 +20,11 @@ import androidx.webkit.WebViewFeature
 
 class MainActivity : AppCompatActivity() {
 
+    private companion object {
+        const val FULLSCREEN_PANE_KEY = "fullscreen_pane_index"
+        const val WEBVIEW_STATE_PREFIX = "webview_state_"
+    }
+
     private data class BrowserPane(
         val container: View,
         val webView: WebView,
@@ -68,12 +73,16 @@ class MainActivity : AppCompatActivity() {
                 toggleFullscreen(index)
             }
 
-            if (savedInstanceState != null) {
-                webView.restoreState(savedInstanceState)
+            savedInstanceState?.getBundle(webViewStateKey(index))?.let { webViewState ->
+                webView.restoreState(webViewState)
             }
 
             panes += BrowserPane(container, webView, addressBar, fullscreenButton)
             webView.contentDescription = getString(R.string.webview_description, index + 1)
+        }
+
+        savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let {
+            toggleFullscreen(it)
         }
     }
 
@@ -204,11 +213,19 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        panes.forEach { pane ->
-            pane.webView.saveState(outState)
+        fullscreenPaneIndex?.let { outState.putInt(FULLSCREEN_PANE_KEY, it) }
+        panes.forEachIndexed { index, pane ->
+            // WebView.saveState uses fixed internal keys. A separate Bundle
+            // prevents one pane from overwriting another during recreation.
+            Bundle().also { webViewState ->
+                pane.webView.saveState(webViewState)
+                outState.putBundle(webViewStateKey(index), webViewState)
+            }
         }
         super.onSaveInstanceState(outState)
     }
+
+    private fun webViewStateKey(index: Int): String = "$WEBVIEW_STATE_PREFIX$index"
 
     override fun onDestroy() {
         panes.forEach { pane ->
