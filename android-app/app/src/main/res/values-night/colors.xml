@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <color name="grid_background">#15191F</color>
-    <color name="pane_background">#0D1117</color>
-    <color name="toolbar_background">#20262E</color>
-    <color name="toolbar_stroke">#3B4652</color>
-    <color name="text_primary">#F1F5F9</color>
-</resources>
+    <resources>
+      <color name="grid_background">#11161B</color>
+      <color name="pane_background">#171D23</color>
+      <color name="toolbar_background">#202830</color>
+      <color name="toolbar_stroke">#3B4854</color>
+      <color name="text_primary">#F4F0EA</color>
+      <color name="text_secondary">#AAB5BF</color>
+      <color name="accent">#E28B4D</color>
+    </resources>
+    
