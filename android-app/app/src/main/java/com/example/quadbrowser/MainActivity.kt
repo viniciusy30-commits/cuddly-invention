@@ -274,12 +274,18 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        window.decorView.post { applyPaneLayout() }
+        window.decorView.post {
+            applyPaneLayout()
+            refreshAutoClickEditors()
+        }
     }
 
     override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
-        window.decorView.post { applyPaneLayout() }
+        window.decorView.post {
+            applyPaneLayout()
+            refreshAutoClickEditors()
+        }
     }
 
     private fun applyPaneLayout() {
@@ -305,6 +311,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             setPaneActionState(paneIndex)
         }
         fullscreenOverlay.requestLayout()
+        pane.clickLayer.post { renderAutoClickEditor(index) }
     }
 
     private fun exitFullscreenPane() {
@@ -326,6 +333,15 @@ grid.visibility = View.VISIBLE
             setPaneActionState(index)
         }
         grid.requestLayout()
+        refreshAutoClickEditors()
+    }
+
+    private fun refreshAutoClickEditors() {
+        panes.forEachIndexed { index, pane ->
+            if (pane.isAutoClickEditing) {
+                pane.clickLayer.post { renderAutoClickEditor(index) }
+            }
+        }
     }
 
     private fun paneLayoutParams(index: Int): GridLayout.LayoutParams = GridLayout.LayoutParams(
