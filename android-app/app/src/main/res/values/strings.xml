@@ -31,14 +31,15 @@
     <string name="open_auto_clicker">Abrir auto clicker</string>
       <string name="stop_auto_clicker">Parar auto clicker</string>
       <string name="auto_clicker_title">Auto clicker</string>
-    <string name="auto_clicker_message">Toque na página para criar pontos. Toque em um ponto para escolher o intervalo em segundos ou minutos. Arraste para reposicionar.</string>
+    <string name="auto_clicker_message">Toque na página para criar pontos. Toque rapidamente em um ponto para removê-lo. Segure para editar o intervalo. Arraste para reposicionar.</string>
     <string name="auto_clicker_interval_hint">Intervalo</string>
     <string name="auto_clicker_start">Editar pontos</string>
     <string name="auto_clicker_invalid_interval">Informe um intervalo válido.</string>
-    <string name="auto_clicker_edit_hint">Toque na página para adicionar • toque no marcador para definir o intervalo • arraste para reposicionar.</string>
+    <string name="auto_clicker_edit_hint">Toque para adicionar • toque para remover • segure para editar • arraste para mover.</string>
     <string name="auto_clicker_add_point">Adicionar</string>
     <string name="auto_clicker_add_point_hint">Toque em qualquer lugar da página para adicionar um ponto.</string>
       <string name="auto_clicker_play">Iniciar sequência</string>
+    <string name="auto_clicker_point_removed">Ponto removido</string>
       <string name="auto_clicker_pause">Pausar sequência</string>
       <string name="auto_clicker_remove">Remover pontos</string>
       <string name="auto_clicker_close">Fechar editor</string>
