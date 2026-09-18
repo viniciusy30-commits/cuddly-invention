@@ -13,6 +13,7 @@
         android:useDefaultMargins="false">
 
     <LinearLayout
+        android:id="@+id/pane_1"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_columnWeight="1"
@@ -47,6 +48,12 @@
                 style="@style/ToolbarButton"
                 android:contentDescription="@string/reload"
                 android:text="@string/reload_symbol" />
+
+            <Button
+                android:id="@+id/fullscreen_1"
+                style="@style/FullscreenButton"
+                android:contentDescription="@string/fullscreen_enter"
+                android:text="@string/fullscreen_enter_symbol" />
         </LinearLayout>
 
         <WebView
@@ -56,6 +63,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/pane_2"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_columnWeight="1"
@@ -90,6 +98,12 @@
                 style="@style/ToolbarButton"
                 android:contentDescription="@string/reload"
                 android:text="@string/reload_symbol" />
+
+            <Button
+                android:id="@+id/fullscreen_2"
+                style="@style/FullscreenButton"
+                android:contentDescription="@string/fullscreen_enter"
+                android:text="@string/fullscreen_enter_symbol" />
         </LinearLayout>
 
         <WebView
@@ -99,6 +113,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/pane_3"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_columnWeight="1"
@@ -133,6 +148,12 @@
                 style="@style/ToolbarButton"
                 android:contentDescription="@string/reload"
                 android:text="@string/reload_symbol" />
+
+            <Button
+                android:id="@+id/fullscreen_3"
+                style="@style/FullscreenButton"
+                android:contentDescription="@string/fullscreen_enter"
+                android:text="@string/fullscreen_enter_symbol" />
         </LinearLayout>
 
         <WebView
@@ -142,6 +163,7 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/pane_4"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_columnWeight="1"
@@ -176,6 +198,12 @@
                 style="@style/ToolbarButton"
                 android:contentDescription="@string/reload"
                 android:text="@string/reload_symbol" />
+
+            <Button
+                android:id="@+id/fullscreen_4"
+                style="@style/FullscreenButton"
+                android:contentDescription="@string/fullscreen_enter"
+                android:text="@string/fullscreen_enter_symbol" />
         </LinearLayout>
 
         <WebView
