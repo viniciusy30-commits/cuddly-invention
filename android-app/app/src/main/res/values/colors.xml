@@ -1,19 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="app_background">#F5F7FB</color>
-    <color name="grid_background">#E8ECF4</color>
+    <color name="app_background">#F6F7FC</color>
+    <color name="grid_background">#E7EBF5</color>
     <color name="pane_background">#FFFFFF</color>
     <color name="toolbar_background">#FFFFFF</color>
-    <color name="pane_toolbar_background">#F7F9FD</color>
-    <color name="address_background">#F1F4F9</color>
-    <color name="icon_button_background">#EEF2F8</color>
-    <color name="toolbar_stroke">#D8E0EC</color>
-    <color name="text_primary">#152033</color>
-    <color name="text_secondary">#708099</color>
-    <color name="accent">#536DFF</color>
-    <color name="accent_dark">#3E56D2</color>
-    <color name="accent_soft">#E8ECFF</color>
-    <color name="danger">#D84F5A</color>
-    <color name="danger_background">#FFF0F1</color>
-    <color name="danger_stroke">#F3C8CD</color>
+    <color name="toolbar_tint">#F0F2FF</color>
+    <color name="pane_toolbar_background">#F8F9FE</color>
+    <color name="address_background">#F0F3F9</color>
+    <color name="icon_button_background">#EEF1F8</color>
+    <color name="toolbar_stroke">#D9DFEC</color>
+    <color name="text_primary">#17233B</color>
+    <color name="text_secondary">#76839A</color>
+    <color name="accent">#5869DD</color>
+    <color name="accent_dark">#4454C5</color>
+    <color name="accent_soft">#E9ECFF</color>
+    <color name="danger">#D94F66</color>
+    <color name="danger_background">#FFF0F3</color>
+    <color name="danger_stroke">#F1C7D0</color>
 </resources>
