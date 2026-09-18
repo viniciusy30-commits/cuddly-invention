@@ -1,18 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Quad Browser</string>
-    <string name="app_subtitle">Quatro espaços independentes</string>
+    <string name="app_subtitle">Quatro espaços independentes, um só painel</string>
     <string name="address_hint">Digite um site ou faça uma busca</string>
-    <string name="go">Ir</string>
+    <string name="navigate">Abrir endereço neste espaço</string>
+    <string name="navigate_pane">Navegar no espaço %1$d</string>
+    <string name="cancel">Cancelar</string>
+    <string name="go">Abrir</string>
     <string name="reload">Recarregar esta página</string>
-    <string name="fullscreen_enter">Abrir este navegador em tela cheia</string>
-    <string name="fullscreen_exit">Voltar para os quatro navegadores</string>
-    <string name="close_instance">Fechar esta instância</string>
+    <string name="fullscreen_enter">Abrir este espaço em tela cheia</string>
+    <string name="fullscreen_exit">Voltar para os quatro espaços</string>
+    <string name="close_instance">Pausar esta instância</string>
     <string name="reopen_instance">Abrir instância</string>
-    <string name="instance_closed">Instância fechada</string>
-    <string name="instance_closed_detail">O espaço está livre. Abra novamente quando quiser continuar.</string>
-    <string name="theme_dark">Usar tema escuro</string>
-    <string name="theme_light">Usar tema claro</string>
+    <string name="instance_paused">Instância pausada</string>
+    <string name="instance_paused_detail">Abra novamente para continuar neste espaço.</string>
+    <string name="instance_closed_detail">Este espaço está livre. Abra novamente quando quiser continuar.</string>
+    <string name="ready_to_browse">Pronto para navegar</string>
+    <string name="page_ready">Página pronta</string>
+    <string name="instance_active">Instância %1$d • em execução</string>
     <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
     <string name="webview_description_1">Navegador 1</string>
@@ -21,6 +26,6 @@
     <string name="webview_description_4">Navegador 4</string>
     <string name="webview_description">Navegador %1$d</string>
     <string name="page_load_error">Não foi possível carregar a página: %1$s</string>
-    <string name="renderer_recovered">A instância %1$d foi reiniciada e está pronta para ser aberta novamente.</string>
-    <string name="multi_profile_unavailable">Este dispositivo precisa de uma versão atualizada do Android System WebView para manter os quatro navegadores isolados.</string>
+    <string name="renderer_recovered">A instância %1$d foi recuperada. Abra novamente para retomar a página.</string>
+    <string name="multi_profile_unavailable">Este dispositivo precisa de uma versão atualizada do Android System WebView para manter os quatro espaços isolados.</string>
 </resources>
