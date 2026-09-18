@@ -9,13 +9,13 @@
     <LinearLayout
         android:id="@+id/app_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="76dp"
+        android:layout_height="86dp"
         android:background="@drawable/bg_app_toolbar"
-        android:elevation="6dp"
+        android:elevation="8dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="18dp"
-        android:paddingEnd="14dp">
+        android:paddingStart="22dp"
+        android:paddingEnd="16dp">
 
         <LinearLayout
             android:layout_width="0dp"
@@ -31,7 +31,7 @@
             <TextView
                 android:id="@+id/app_subtitle"
                 style="@style/AppSubtitle"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="3dp"
                 android:text="@string/app_subtitle" />
         </LinearLayout>
 
@@ -48,7 +48,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:background="@color/grid_background"
-        android:padding="3dp">
+        android:padding="5dp">
 
         <GridLayout
             android:id="@+id/browser_grid"
@@ -66,55 +66,83 @@
             android:layout_columnWeight="1"
             android:layout_rowWeight="1"
             android:layout_gravity="fill"
-            android:layout_margin="5dp"
+            android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
-            android:elevation="2dp"
-            android:orientation="vertical">
+            android:elevation="4dp"
+            android:orientation="vertical">">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_1"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="88dp"
                 android:background="@drawable/bg_pane_toolbar"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="7dp">
 
-                <TextView
-                    style="@style/PaneBadge"
-                    android:text="01" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/address_1"
-                    style="@style/AddressBar"
-                    android:hint="@string/address_hint"
-                    android:imeOptions="actionGo"
-                    android:inputType="textUri"
-                    android:maxLines="1" />
+                    <TextView
+                        style="@style/PaneBadge"
+                        android:text="01" />
 
-                <Button
-                    android:id="@+id/go_1"
-                    style="@style/ActionButton"
-                    android:text="@string/go" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                <ImageButton
-                    android:id="@+id/reload_1"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/reload"
-                    android:src="@drawable/ic_refresh" />
+                        <TextView
+                            android:id="@+id/pane_title_1"
+                            style="@style/PaneTitle"
+                            android:text="@string/ready_to_browse"
+                            android:text="Pronto para navegar" />
 
-                <ImageButton
-                    android:id="@+id/fullscreen_1"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/fullscreen_enter"
-                    android:src="@drawable/ic_expand" />
+                        <TextView
+                            android:id="@+id/pane_subtitle_1"
+                            style="@style/PaneSubtitle"
+                            android:text="@string/instance_active_1" />
+                    </LinearLayout>
+                </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/close_1"
-                    style="@style/DangerIconButton"
-                    android:contentDescription="@string/close_instance"
-                    android:src="@drawable/ic_close" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/navigate_1"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/navigate"
+                        android:src="@drawable/ic_navigate" />
+
+                    <ImageButton
+                        android:id="@+id/reload_1"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/reload"
+                        android:src="@drawable/ic_refresh" />
+
+                    <ImageButton
+                        android:id="@+id/fullscreen_1"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/fullscreen_enter"
+                        android:src="@drawable/ic_expand" />
+
+                    <ImageButton
+                        android:id="@+id/close_1"
+                        style="@style/DangerIconButton"
+                        android:contentDescription="@string/close_instance"
+                        android:src="@drawable/ic_close" />
+                </LinearLayout>
             </LinearLayout>
 
             <FrameLayout
@@ -141,7 +169,7 @@
 
                     <TextView
                         style="@style/EmptyTitle"
-                        android:text="@string/instance_closed" />
+                        android:text="@string/instance_paused" />
 
                     <TextView
                         style="@style/EmptyDetail"
@@ -154,6 +182,7 @@
                 </LinearLayout>
             </FrameLayout>
         </LinearLayout>
+
         <LinearLayout
             android:id="@+id/pane_2"
             android:layout_width="0dp"
@@ -161,55 +190,83 @@
             android:layout_columnWeight="1"
             android:layout_rowWeight="1"
             android:layout_gravity="fill"
-            android:layout_margin="5dp"
+            android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
-            android:elevation="2dp"
-            android:orientation="vertical">
+            android:elevation="4dp"
+            android:orientation="vertical">">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_2"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="88dp"
                 android:background="@drawable/bg_pane_toolbar"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="7dp">
 
-                <TextView
-                    style="@style/PaneBadge"
-                    android:text="02" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/address_2"
-                    style="@style/AddressBar"
-                    android:hint="@string/address_hint"
-                    android:imeOptions="actionGo"
-                    android:inputType="textUri"
-                    android:maxLines="1" />
+                    <TextView
+                        style="@style/PaneBadge"
+                        android:text="02" />
 
-                <Button
-                    android:id="@+id/go_2"
-                    style="@style/ActionButton"
-                    android:text="@string/go" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                <ImageButton
-                    android:id="@+id/reload_2"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/reload"
-                    android:src="@drawable/ic_refresh" />
+                        <TextView
+                            android:id="@+id/pane_title_2"
+                            style="@style/PaneTitle"
+                            android:text="@string/ready_to_browse"
+                            android:text="Pronto para navegar" />
 
-                <ImageButton
-                    android:id="@+id/fullscreen_2"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/fullscreen_enter"
-                    android:src="@drawable/ic_expand" />
+                        <TextView
+                            android:id="@+id/pane_subtitle_2"
+                            style="@style/PaneSubtitle"
+                            android:text="@string/instance_active_1" />
+                    </LinearLayout>
+                </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/close_2"
-                    style="@style/DangerIconButton"
-                    android:contentDescription="@string/close_instance"
-                    android:src="@drawable/ic_close" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/navigate_2"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/navigate"
+                        android:src="@drawable/ic_navigate" />
+
+                    <ImageButton
+                        android:id="@+id/reload_2"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/reload"
+                        android:src="@drawable/ic_refresh" />
+
+                    <ImageButton
+                        android:id="@+id/fullscreen_2"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/fullscreen_enter"
+                        android:src="@drawable/ic_expand" />
+
+                    <ImageButton
+                        android:id="@+id/close_2"
+                        style="@style/DangerIconButton"
+                        android:contentDescription="@string/close_instance"
+                        android:src="@drawable/ic_close" />
+                </LinearLayout>
             </LinearLayout>
 
             <FrameLayout
@@ -236,7 +293,7 @@
 
                     <TextView
                         style="@style/EmptyTitle"
-                        android:text="@string/instance_closed" />
+                        android:text="@string/instance_paused" />
 
                     <TextView
                         style="@style/EmptyDetail"
@@ -249,6 +306,7 @@
                 </LinearLayout>
             </FrameLayout>
         </LinearLayout>
+
         <LinearLayout
             android:id="@+id/pane_3"
             android:layout_width="0dp"
@@ -256,55 +314,83 @@
             android:layout_columnWeight="1"
             android:layout_rowWeight="1"
             android:layout_gravity="fill"
-            android:layout_margin="5dp"
+            android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
-            android:elevation="2dp"
-            android:orientation="vertical">
+            android:elevation="4dp"
+            android:orientation="vertical">">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_3"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="88dp"
                 android:background="@drawable/bg_pane_toolbar"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="7dp">
 
-                <TextView
-                    style="@style/PaneBadge"
-                    android:text="03" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/address_3"
-                    style="@style/AddressBar"
-                    android:hint="@string/address_hint"
-                    android:imeOptions="actionGo"
-                    android:inputType="textUri"
-                    android:maxLines="1" />
+                    <TextView
+                        style="@style/PaneBadge"
+                        android:text="03" />
 
-                <Button
-                    android:id="@+id/go_3"
-                    style="@style/ActionButton"
-                    android:text="@string/go" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                <ImageButton
-                    android:id="@+id/reload_3"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/reload"
-                    android:src="@drawable/ic_refresh" />
+                        <TextView
+                            android:id="@+id/pane_title_3"
+                            style="@style/PaneTitle"
+                            android:text="@string/ready_to_browse"
+                            android:text="Pronto para navegar" />
 
-                <ImageButton
-                    android:id="@+id/fullscreen_3"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/fullscreen_enter"
-                    android:src="@drawable/ic_expand" />
+                        <TextView
+                            android:id="@+id/pane_subtitle_3"
+                            style="@style/PaneSubtitle"
+                            android:text="@string/instance_active_1" />
+                    </LinearLayout>
+                </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/close_3"
-                    style="@style/DangerIconButton"
-                    android:contentDescription="@string/close_instance"
-                    android:src="@drawable/ic_close" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/navigate_3"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/navigate"
+                        android:src="@drawable/ic_navigate" />
+
+                    <ImageButton
+                        android:id="@+id/reload_3"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/reload"
+                        android:src="@drawable/ic_refresh" />
+
+                    <ImageButton
+                        android:id="@+id/fullscreen_3"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/fullscreen_enter"
+                        android:src="@drawable/ic_expand" />
+
+                    <ImageButton
+                        android:id="@+id/close_3"
+                        style="@style/DangerIconButton"
+                        android:contentDescription="@string/close_instance"
+                        android:src="@drawable/ic_close" />
+                </LinearLayout>
             </LinearLayout>
 
             <FrameLayout
@@ -331,7 +417,7 @@
 
                     <TextView
                         style="@style/EmptyTitle"
-                        android:text="@string/instance_closed" />
+                        android:text="@string/instance_paused" />
 
                     <TextView
                         style="@style/EmptyDetail"
@@ -344,6 +430,7 @@
                 </LinearLayout>
             </FrameLayout>
         </LinearLayout>
+
         <LinearLayout
             android:id="@+id/pane_4"
             android:layout_width="0dp"
@@ -351,55 +438,83 @@
             android:layout_columnWeight="1"
             android:layout_rowWeight="1"
             android:layout_gravity="fill"
-            android:layout_margin="5dp"
+            android:layout_margin="7dp"
             android:background="@drawable/bg_pane_card"
-            android:elevation="2dp"
-            android:orientation="vertical">
+            android:elevation="4dp"
+            android:orientation="vertical">">
 
             <LinearLayout
                 android:id="@+id/pane_toolbar_4"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="88dp"
                 android:background="@drawable/bg_pane_toolbar"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingStart="8dp"
-                android:paddingEnd="8dp">
+                android:orientation="vertical"
+                android:paddingStart="12dp"
+                android:paddingTop="9dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="7dp">
 
-                <TextView
-                    style="@style/PaneBadge"
-                    android:text="04" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                <EditText
-                    android:id="@+id/address_4"
-                    style="@style/AddressBar"
-                    android:hint="@string/address_hint"
-                    android:imeOptions="actionGo"
-                    android:inputType="textUri"
-                    android:maxLines="1" />
+                    <TextView
+                        style="@style/PaneBadge"
+                        android:text="04" />
 
-                <Button
-                    android:id="@+id/go_4"
-                    style="@style/ActionButton"
-                    android:text="@string/go" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
 
-                <ImageButton
-                    android:id="@+id/reload_4"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/reload"
-                    android:src="@drawable/ic_refresh" />
+                        <TextView
+                            android:id="@+id/pane_title_4"
+                            style="@style/PaneTitle"
+                            android:text="@string/ready_to_browse"
+                            android:text="Pronto para navegar" />
 
-                <ImageButton
-                    android:id="@+id/fullscreen_4"
-                    style="@style/IconButton"
-                    android:contentDescription="@string/fullscreen_enter"
-                    android:src="@drawable/ic_expand" />
+                        <TextView
+                            android:id="@+id/pane_subtitle_4"
+                            style="@style/PaneSubtitle"
+                            android:text="@string/instance_active_1" />
+                    </LinearLayout>
+                </LinearLayout>
 
-                <ImageButton
-                    android:id="@+id/close_4"
-                    style="@style/DangerIconButton"
-                    android:contentDescription="@string/close_instance"
-                    android:src="@drawable/ic_close" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="38dp"
+                    android:gravity="end|center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageButton
+                        android:id="@+id/navigate_4"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/navigate"
+                        android:src="@drawable/ic_navigate" />
+
+                    <ImageButton
+                        android:id="@+id/reload_4"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/reload"
+                        android:src="@drawable/ic_refresh" />
+
+                    <ImageButton
+                        android:id="@+id/fullscreen_4"
+                        style="@style/IconButton"
+                        android:contentDescription="@string/fullscreen_enter"
+                        android:src="@drawable/ic_expand" />
+
+                    <ImageButton
+                        android:id="@+id/close_4"
+                        style="@style/DangerIconButton"
+                        android:contentDescription="@string/close_instance"
+                        android:src="@drawable/ic_close" />
+                </LinearLayout>
             </LinearLayout>
 
             <FrameLayout
@@ -426,7 +541,7 @@
 
                     <TextView
                         style="@style/EmptyTitle"
-                        android:text="@string/instance_closed" />
+                        android:text="@string/instance_paused" />
 
                     <TextView
                         style="@style/EmptyDetail"
@@ -446,7 +561,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/pane_background"
-            android:elevation="8dp"
+            android:elevation="12dp"
             android:visibility="gone" />
 
         <ImageButton
