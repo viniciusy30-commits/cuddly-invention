@@ -12,6 +12,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     )
 
     private val panes = mutableListOf<BrowserPane>()
+    private lateinit var fullscreenOverlay: FrameLayout
     private var fullscreenPaneIndex: Int? = null
     private var isDarkTheme = false
 
@@ -51,6 +53,7 @@ class MainActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
 
         findViewById<Button>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
@@ -151,64 +154,79 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyPaneLayout() {
-        if (panes.isEmpty()) return
+          if (panes.isEmpty()) return
 
-        val grid = findViewById<GridLayout>(R.id.browser_grid)
-        val appToolbar = findViewById<View>(R.id.app_toolbar)
-        val selectedIndex = fullscreenPaneIndex
-        val gridParams = grid.layoutParams as? ViewGroup.MarginLayoutParams
+          val selectedIndex = fullscreenPaneIndex?.takeIf { it in panes.indices }
+          fullscreenPaneIndex = selectedIndex
 
-        if (selectedIndex == null) {
-            appToolbar.visibility = View.VISIBLE
-            gridParams?.let {
-                it.topMargin = resources.getDimensionPixelSize(R.dimen.app_toolbar_height)
-                grid.layoutParams = it
-            }
-            grid.columnCount = 2
-            grid.rowCount = 2
-            panes.forEachIndexed { index, pane ->
-                pane.container.visibility = View.VISIBLE
-                pane.container.layoutParams = paneLayoutParams(index, fullscreen = false)
-                setFullscreenButtonState(pane, selected = false)
-            }
-        } else {
-            appToolbar.visibility = View.GONE
-            gridParams?.let {
-                it.topMargin = 0
-                grid.layoutParams = it
-            }
-            // Hide the other children before changing the grid to one cell so
-            // GridLayout never tries to place stale positions in a 1x1 grid.
-            panes.forEach { pane -> pane.container.visibility = View.GONE }
-            grid.columnCount = 1
-            grid.rowCount = 1
-            panes.forEachIndexed { index, pane ->
-                val selected = index == selectedIndex
-                if (selected) {
-                    pane.container.visibility = View.VISIBLE
-                    pane.container.layoutParams = paneLayoutParams(index, fullscreen = true)
-                }
-                setFullscreenButtonState(pane, selected)
-            }
-        }
+          if (selectedIndex == null) {
+              exitFullscreenPane()
+          } else {
+              enterFullscreenPane(selectedIndex)
+          }
+      }
 
-        grid.requestLayout()
-    }
+      private fun enterFullscreenPane(index: Int) {
+          val grid = findViewById<GridLayout>(R.id.browser_grid)
+          val appToolbar = findViewById<View>(R.id.app_toolbar)
+          val pane = panes[index]
 
-    private fun paneLayoutParams(index: Int, fullscreen: Boolean): GridLayout.LayoutParams {
-        val row = if (fullscreen) 0 else index / 2
-        val column = if (fullscreen) 0 else index % 2
-        return GridLayout.LayoutParams(
-            GridLayout.spec(row, 1, 1f),
-            GridLayout.spec(column, 1, 1f),
-        ).apply {
-            width = 0
-            height = 0
-            setMargins(1, 1, 1, 1)
-        }
-    }
+          // Keep the GridLayout unchanged. Moving one pane to a dedicated overlay
+          // avoids invalid row/column specs and keeps the other WebViews intact.
+          if (pane.container.parent !== fullscreenOverlay) {
+              (pane.container.parent as? ViewGroup)?.removeView(pane.container)
+              fullscreenOverlay.addView(
+                  pane.container,
+                  FrameLayout.LayoutParams(
+                      ViewGroup.LayoutParams.MATCH_PARENT,
+                      ViewGroup.LayoutParams.MATCH_PARENT,
+                  ),
+              )
+          }
 
-    private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
+          grid.visibility = View.GONE
+          appToolbar.visibility = View.GONE
+          fullscreenOverlay.visibility = View.VISIBLE
+          pane.container.visibility = View.VISIBLE
+          panes.forEachIndexed { paneIndex, browserPane ->
+              setFullscreenButtonState(browserPane, selected = paneIndex == index)
+          }
+          fullscreenOverlay.requestLayout()
+      }
+
+      private fun exitFullscreenPane() {
+          val grid = findViewById<GridLayout>(R.id.browser_grid)
+          val appToolbar = findViewById<View>(R.id.app_toolbar)
+          val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
+
+          if (selectedIndex >= 0) {
+              val pane = panes[selectedIndex]
+              fullscreenOverlay.removeView(pane.container)
+              grid.addView(pane.container, paneLayoutParams(selectedIndex))
+          }
+
+          fullscreenOverlay.visibility = View.GONE
+          grid.visibility = View.VISIBLE
+          appToolbar.visibility = View.VISIBLE
+          panes.forEach { pane ->
+              pane.container.visibility = View.VISIBLE
+              setFullscreenButtonState(pane, selected = false)
+          }
+          grid.requestLayout()
+      }
+
+      private fun paneLayoutParams(index: Int): GridLayout.LayoutParams {
+          return GridLayout.LayoutParams(
+              GridLayout.spec(index / 2, 1, 1f),
+              GridLayout.spec(index % 2, 1, 1f),
+          ).apply {
+              width = 0
+              height = 0
+              setMargins(1, 1, 1, 1)
+          }
+      }
+
+        private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
         pane.fullscreenButton.text = getString(
             if (selected) R.string.fullscreen_exit_symbol else R.string.fullscreen_enter_symbol,
         )
@@ -293,13 +311,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun persistPaneUrl(index: Int, url: String) {
-        getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
-            .edit()
-            .putString(paneUrlKey(index), url)
-            .apply()
-    }
+          getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+              .edit()
+              .putString(paneUrlKey(index), url)
+              .apply()
+      }
 
-    private fun loadInput(webView: WebView, addressBar: EditText) {
+      private fun persistAllPaneUrls() {
+          getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().also { editor ->
+              panes.forEachIndexed { index, pane ->
+                  pane.webView.url?.takeIf { it.isNotBlank() }?.let { url ->
+                      editor.putString(paneUrlKey(index), url)
+                  }
+              }
+          }.commit()
+      }
+
+        private fun loadInput(webView: WebView, addressBar: EditText) {
         val input = addressBar.text.toString().trim()
         if (input.isEmpty()) return
 
@@ -347,19 +375,23 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-        panes.forEachIndexed { index, pane ->
-            pane.webView.url?.let { persistPaneUrl(index, it) }
-        }
-        super.onPause()
-    }
+          persistAllPaneUrls()
+          super.onPause()
+      }
 
-    private fun webViewStateKey(index: Int): String = "$WEBVIEW_STATE_PREFIX$index"
+      override fun onStop() {
+          persistAllPaneUrls()
+          super.onStop()
+      }
+
+        private fun webViewStateKey(index: Int): String = "$WEBVIEW_STATE_PREFIX$index"
 
     private fun webViewUrlKey(index: Int): String = "$WEBVIEW_URL_PREFIX$index"
 
     private fun paneUrlKey(index: Int): String = "$PANE_URL_PREFIX$index"
 
     override fun onDestroy() {
+        persistAllPaneUrls()
         // Android keeps the existing WebViews during a handled configuration
         // change. Destroying them here would force every pane to reload when a
         // floating window is entered or resized.
