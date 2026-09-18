@@ -73,6 +73,7 @@ class MainActivity : AppCompatActivity() {
         var autoClickIndex: Int = 0,
         var isAutoClickEditing: Boolean = false,
         var isAutoClicking: Boolean = false,
+        var editorPlayPauseButton: TextView? = null,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -208,10 +209,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
 
     private fun setPaneOpen(index: Int, open: Boolean) {
         val pane = panes.getOrNull(index) ?: return
-        if (!open) {
-            stopAutoClicker(index)
-            hideAutoClickerEditor(index)
-        }
         pane.isOpen = open
         if (!open && fullscreenPaneIndex == index) fullscreenPaneIndex = null
         if (open) {
@@ -229,7 +226,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     private fun applyPaneOpenUi(index: Int, open: Boolean) {
         val pane = panes.getOrNull(index) ?: return
         pane.isOpen = open
-        pane.webView.visibility = if (open) View.VISIBLE else View.GONE
+        pane.webView.visibility = if (open) View.VISIBLE else View.INVISIBLE
         pane.emptyState.visibility = if (open) View.GONE else View.VISIBLE
         pane.clickLayer.visibility = if (open && pane.isAutoClickEditing) View.VISIBLE else View.GONE
         pane.navigateButton.visibility = if (open) View.VISIBLE else View.GONE
@@ -310,7 +307,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
         if (selectedIndex >= 0) {
-            hideAutoClickerEditor(selectedIndex)
+            hideAutoClickerEditor(selectedIndex, stop = false)
             val pane = panes[selectedIndex]
             fullscreenOverlay.removeView(pane.container)
             grid.addView(pane.container, selectedIndex, paneLayoutParams(selectedIndex))
@@ -332,28 +329,34 @@ grid.visibility = View.VISIBLE
     ).apply { width = 0; height = 0; setMargins(7, 7, 7, 7) }
 
     private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
-          pane.fullscreenButton.setImageResource(if (selected) R.drawable.ic_close else R.drawable.ic_expand)
-          pane.fullscreenButton.setBackgroundResource(if (selected) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
-          pane.fullscreenButton.setColorFilter(getColor(if (selected) R.color.danger else R.color.text_primary))
-          pane.fullscreenButton.contentDescription = getString(if (selected) R.string.fullscreen_exit else R.string.fullscreen_enter)
-      }
+        pane.fullscreenButton.setImageResource(R.drawable.ic_expand)
+        pane.fullscreenButton.setBackgroundResource(R.drawable.bg_icon_button)
+        pane.fullscreenButton.setColorFilter(getColor(R.color.text_primary))
+        pane.fullscreenButton.contentDescription = getString(if (selected) R.string.fullscreen_exit else R.string.fullscreen_enter)
+    }
 
 
-      private fun setPaneActionState(index: Int) {
-          val pane = panes.getOrNull(index) ?: return
-          pane.autoClickButton.setImageResource(R.drawable.ic_auto_click)
-          pane.autoClickButton.setBackgroundResource(if (pane.isAutoClicking) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
-          pane.autoClickButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
-          pane.autoClickButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
-          pane.autoClickButton.visibility = if (pane.isOpen) View.VISIBLE else View.GONE
-          pane.closeButton.setImageResource(R.drawable.ic_close)
-          pane.closeButton.setBackgroundResource(R.drawable.bg_danger_button)
-          pane.closeButton.setColorFilter(getColor(R.color.danger))
-          pane.closeButton.contentDescription = getString(R.string.close_instance)
-          pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
-      }
+    private fun setPaneActionState(index: Int) {
+        val pane = panes.getOrNull(index) ?: return
+        pane.autoClickButton.setImageResource(R.drawable.ic_auto_click)
+        pane.autoClickButton.setBackgroundResource(if (pane.isAutoClicking) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
+        pane.autoClickButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
+        pane.autoClickButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
+        pane.autoClickButton.visibility = if (pane.isOpen && fullscreenPaneIndex == index) View.VISIBLE else View.GONE
+        pane.editorPlayPauseButton?.apply {
+            text = if (pane.isAutoClicking) "Ⅱ" else "▶"
+            contentDescription = getString(if (pane.isAutoClicking) R.string.auto_clicker_pause else R.string.auto_clicker_play)
+        }
+        pane.closeButton.setImageResource(R.drawable.ic_close)
+        pane.closeButton.setBackgroundResource(R.drawable.bg_danger_button)
+        pane.closeButton.setColorFilter(getColor(R.color.danger))
+        pane.closeButton.contentDescription = getString(R.string.close_instance)
+        pane.closeButton.visibility = if (pane.isOpen && fullscreenPaneIndex != index) View.VISIBLE else View.GONE
+        pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
+    }
 
-      private fun configureClickLayer(index: Int) {
+
+    private fun configureClickLayer(index: Int) {
           val pane = panes.getOrNull(index) ?: return
           pane.clickLayer.setOnTouchListener { _, event ->
               if (!pane.isAutoClickEditing || pane.isAutoClicking) return@setOnTouchListener false
@@ -371,16 +374,17 @@ grid.visibility = View.VISIBLE
           pane.clickLayer.post { renderAutoClickEditor(index) }
       }
 
-      private fun hideAutoClickerEditor(index: Int) {
-          val pane = panes.getOrNull(index) ?: return
-          stopAutoClicker(index)
-          pane.isAutoClickEditing = false
-          pane.clickLayer.isClickable = false
-          pane.clickLayer.visibility = View.GONE
-          pane.clickLayer.removeAllViews()
-      }
+      private fun hideAutoClickerEditor(index: Int, stop: Boolean = true) {
+        val pane = panes.getOrNull(index) ?: return
+        if (stop) stopAutoClicker(index)
+        pane.isAutoClickEditing = false
+        pane.clickLayer.isClickable = false
+        pane.clickLayer.visibility = View.GONE
+        pane.editorPlayPauseButton = null
+        pane.clickLayer.removeAllViews()
+    }
 
-      private fun addAutoClickPoint(index: Int, x: Float, y: Float) {
+    private fun addAutoClickPoint(index: Int, x: Float, y: Float) {
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isAutoClickEditing || pane.isAutoClicking) return
           val maxX = (pane.clickLayer.width - 1).coerceAtLeast(0).toFloat()
@@ -465,7 +469,7 @@ grid.visibility = View.VISIBLE
           val layer = pane.clickLayer
           layer.visibility = View.VISIBLE
           layer.removeAllViews()
-           val markerSize = dp(40)
+           val markerSize = dp(28)
           pane.autoClickPoints.forEachIndexed { pointIndex, point ->
               val marker = TextView(this).apply {
                   text = (pointIndex + 1).toString() + "\n" + formatInterval(point.intervalMs)
@@ -484,6 +488,8 @@ grid.visibility = View.VISIBLE
               var startViewX = 0f
               var startViewY = 0f
               var moved = false
+              var longPressTriggered = false
+              var longPressAction: Runnable? = null
               marker.setOnTouchListener { view, event ->
                   if (pane.isAutoClicking) return@setOnTouchListener false
                   when (event.actionMasked) {
@@ -493,26 +499,44 @@ grid.visibility = View.VISIBLE
                           startViewX = view.x
                           startViewY = view.y
                           moved = false
+                          longPressTriggered = false
+                          longPressAction = Runnable {
+                              if (!moved && !pane.isAutoClicking) {
+                                  longPressTriggered = true
+                                  showPointIntervalDialog(index, pointIndex)
+                              }
+                          }.also { autoClickHandler.postDelayed(it, 450L) }
                           true
                       }
                       MotionEvent.ACTION_MOVE -> {
                           val dx = event.rawX - startRawX
                           val dy = event.rawY - startRawY
                           moved = moved || abs(dx) > dp(6) || abs(dy) > dp(6)
+                          if (moved) longPressAction?.let(autoClickHandler::removeCallbacks)
                           view.x = (startViewX + dx).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
                           view.y = (startViewY + dy).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
                           true
                       }
                       MotionEvent.ACTION_UP -> {
-                          point.x = view.x + markerSize / 2f
-                          point.y = view.y + markerSize / 2f
-                          if (!moved) showPointIntervalDialog(index, pointIndex)
+                          longPressAction?.let(autoClickHandler::removeCallbacks)
+                          if (moved) {
+                              point.x = view.x + markerSize / 2f
+                              point.y = view.y + markerSize / 2f
+                          } else if (!longPressTriggered && pointIndex in pane.autoClickPoints.indices) {
+                              pane.autoClickPoints.removeAt(pointIndex)
+                              Toast.makeText(this, R.string.auto_clicker_point_removed, Toast.LENGTH_SHORT).show()
+                              renderAutoClickEditor(index)
+                          }
+                          true
+                      }
+                      MotionEvent.ACTION_CANCEL -> {
+                          longPressAction?.let(autoClickHandler::removeCallbacks)
                           true
                       }
                       else -> true
                   }
               }
-              layer.addView(marker)
+layer.addView(marker)
           }
           val panel = LinearLayout(this).apply {
               orientation = LinearLayout.VERTICAL
@@ -550,10 +574,19 @@ grid.visibility = View.VISIBLE
               setPadding(dp(5), 0, dp(5), 0)
               setOnClickListener { click() }
           }
-          row.addView(compactAction("▶", R.string.auto_clicker_play) { startAutoClicker(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
-          row.addView(compactAction("Ⅱ", R.string.auto_clicker_pause) { stopAutoClicker(index, true); pane.isAutoClickEditing = true; renderAutoClickEditor(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
-          row.addView(compactAction("⌫", R.string.auto_clicker_remove) { removeAllAutoClickPoints(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
-          panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+          val playPause = compactAction(if (pane.isAutoClicking) "Ⅱ" else "▶", if (pane.isAutoClicking) R.string.auto_clicker_pause else R.string.auto_clicker_play) {
+               if (pane.isAutoClicking) {
+                   stopAutoClicker(index, true)
+                   pane.isAutoClickEditing = true
+                   renderAutoClickEditor(index)
+               } else {
+                   startAutoClicker(index)
+               }
+           }
+           pane.editorPlayPauseButton = playPause
+           row.addView(playPause, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
+           row.addView(compactAction("⌫", R.string.auto_clicker_remove) { removeAllAutoClickPoints(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
+panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
           layer.addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP })
       }
 
@@ -573,7 +606,7 @@ grid.visibility = View.VISIBLE
           val runnable = object : Runnable {
               override fun run() {
                   val currentPane = panes.getOrNull(index)
-                  if (currentPane == null || !currentPane.isOpen || currentPane.webView.visibility != View.VISIBLE || currentPane.webView.width <= 0 || currentPane.webView.height <= 0) {
+                  if (currentPane == null || currentPane.webView.width <= 0 || currentPane.webView.height <= 0) {
                       stopAutoClicker(index)
                       return
                   }
