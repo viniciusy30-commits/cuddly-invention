@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-    <resources>
-      <color name="grid_background">#11161B</color>
-      <color name="pane_background">#171D23</color>
-      <color name="toolbar_background">#202830</color>
-      <color name="toolbar_stroke">#3B4854</color>
-      <color name="text_primary">#F4F0EA</color>
-      <color name="text_secondary">#AAB5BF</color>
-      <color name="accent">#E28B4D</color>
-    </resources>
-    
+<resources>
+    <color name="app_background">#0C1020</color>
+    <color name="grid_background">#141A2B</color>
+    <color name="pane_background">#111827</color>
+    <color name="toolbar_background">#182136</color>
+    <color name="pane_toolbar_background">#1A253C</color>
+    <color name="address_background">#111A2D</color>
+    <color name="icon_button_background">#222D45</color>
+    <color name="toolbar_stroke">#2D3B59</color>
+    <color name="text_primary">#F5F7FF</color>
+    <color name="text_secondary">#A2B0CC</color>
+    <color name="accent">#7C8CFF</color>
+    <color name="accent_dark">#99A5FF</color>
+    <color name="accent_soft">#252F5A</color>
+    <color name="danger">#FF8C98</color>
+    <color name="danger_background">#3A202C</color>
+    <color name="danger_stroke">#693542</color>
+</resources>
