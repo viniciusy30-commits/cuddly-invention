@@ -81,11 +81,6 @@ class MainActivity : AppCompatActivity() {
         fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
 
         val isFullscreen = fullscreenPaneIndex != null
-        findViewById<android.widget.GridLayout>(R.id.browser_grid).apply {
-            columnCount = if (isFullscreen) 1 else 2
-            rowCount = if (isFullscreen) 1 else 2
-        }
-
         panes.forEachIndexed { paneIndex, pane ->
             val isSelected = paneIndex == fullscreenPaneIndex
             pane.container.visibility = if (!isFullscreen || isSelected) View.VISIBLE else View.GONE
@@ -103,6 +98,13 @@ class MainActivity : AppCompatActivity() {
                     R.string.fullscreen_enter
                 },
             )
+        }
+
+        // Hide the other panes before changing the grid to 1x1. This avoids
+        // asking GridLayout to place four visible children in one cell.
+        findViewById<android.widget.GridLayout>(R.id.browser_grid).apply {
+            columnCount = if (isFullscreen) 1 else 2
+            rowCount = if (isFullscreen) 1 else 2
         }
     }
 
