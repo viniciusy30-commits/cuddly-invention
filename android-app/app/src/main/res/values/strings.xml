@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Quad Browser</string>
+    <string name="address_hint">Site ou busca</string>
+    <string name="go">Ir</string>
+    <string name="reload">Recarregar</string>
+    <string name="reload_symbol">↻</string>
+    <string name="webview_description_1">Navegador 1</string>
+    <string name="webview_description_2">Navegador 2</string>
+    <string name="webview_description_3">Navegador 3</string>
+    <string name="webview_description_4">Navegador 4</string>
+    <string name="webview_description">Navegador %1$d</string>
+    <string name="page_load_error">Não foi possível carregar a página: %1$s</string>
+    <string name="multi_profile_unavailable">Este dispositivo precisa de uma versão atualizada do Android System WebView para manter os quatro navegadores isolados.</string>
+</resources>
