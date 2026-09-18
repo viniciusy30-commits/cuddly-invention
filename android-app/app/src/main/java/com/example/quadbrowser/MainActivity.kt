@@ -173,7 +173,6 @@ class MainActivity : AppCompatActivity() {
 
       private fun enterFullscreenPane(index: Int) {
           val grid = findViewById<GridLayout>(R.id.browser_grid)
-          val appToolbar = findViewById<View>(R.id.app_toolbar)
           val pane = panes[index]
 
           // Keep the GridLayout unchanged. Moving one pane to a dedicated overlay
@@ -190,9 +189,12 @@ class MainActivity : AppCompatActivity() {
           }
 
           grid.visibility = View.GONE
-          appToolbar.visibility = View.GONE
           fullscreenOverlay.visibility = View.VISIBLE
           pane.container.visibility = View.VISIBLE
+           findViewById<View>(R.id.fullscreen_exit_overlay).apply {
+               visibility = View.VISIBLE
+               bringToFront()
+           }
           panes.forEachIndexed { paneIndex, browserPane ->
               setFullscreenButtonState(browserPane, selected = paneIndex == index)
           }
@@ -201,7 +203,6 @@ class MainActivity : AppCompatActivity() {
 
       private fun exitFullscreenPane() {
           val grid = findViewById<GridLayout>(R.id.browser_grid)
-          val appToolbar = findViewById<View>(R.id.app_toolbar)
           val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
 
           if (selectedIndex >= 0) {
@@ -211,8 +212,8 @@ class MainActivity : AppCompatActivity() {
           }
 
           fullscreenOverlay.visibility = View.GONE
+           findViewById<View>(R.id.fullscreen_exit_overlay).visibility = View.GONE
           grid.visibility = View.VISIBLE
-          appToolbar.visibility = View.VISIBLE
           panes.forEach { pane ->
               pane.container.visibility = View.VISIBLE
               setFullscreenButtonState(pane, selected = false)
