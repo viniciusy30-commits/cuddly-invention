@@ -33,6 +33,17 @@ inclui as dependências necessárias:
 
 Também já estão configurados `INTERNET`, orientação retrato e o tema da tela.
 
+## Tela cheia
+
+O app inicia em modo imersivo, escondendo a barra de notificações e a barra de
+navegação para aproveitar toda a área disponível. Um gesto de deslizar a partir
+da borda pode revelar temporariamente as barras do Android.
+
+Cada quadrante tem um botão `⛶` na barra de controles. Toque nele para ampliar
+esse navegador e ocultar os outros três. Toque novamente no botão `×` para
+voltar à grade 2×2. A sessão, cookies e navegação do quadrante continuam
+preservados durante a troca de visualização.
+
 ## Build gratuito pelo GitHub Actions
 
 O workflow `.github/workflows/android.yml` compila o APK automaticamente a
