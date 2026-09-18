@@ -4,14 +4,15 @@
     <color name="grid_background">#141A2B</color>
     <color name="pane_background">#111827</color>
     <color name="toolbar_background">#182136</color>
+    <color name="toolbar_tint">#202B4B</color>
     <color name="pane_toolbar_background">#1A253C</color>
     <color name="address_background">#111A2D</color>
     <color name="icon_button_background">#222D45</color>
     <color name="toolbar_stroke">#2D3B59</color>
     <color name="text_primary">#F5F7FF</color>
     <color name="text_secondary">#A2B0CC</color>
-    <color name="accent">#7C8CFF</color>
-    <color name="accent_dark">#99A5FF</color>
+    <color name="accent">#8592FF</color>
+    <color name="accent_dark">#6D7BF0</color>
     <color name="accent_soft">#252F5A</color>
     <color name="danger">#FF8C98</color>
     <color name="danger_background">#3A202C</color>
