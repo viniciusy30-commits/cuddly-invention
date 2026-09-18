@@ -4,6 +4,7 @@ import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.view.Gravity
 import android.net.Uri
 import android.os.Bundle
 import android.util.Patterns
@@ -17,7 +18,6 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.text.InputType
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
@@ -43,11 +43,12 @@ class MainActivity : AppCompatActivity() {
         const val DARK_THEME_KEY = "dark_theme"
     }
 
-    private data class ClickPoint(val x: Float, val y: Float)
+    private data class ClickPoint(var x: Float, var y: Float)
 
     private data class BrowserPane(
         val container: View,
         var webView: WebView,
+        val clickLayer: FrameLayout,
         val titleView: TextView,
         val subtitleView: TextView,
         val navigateButton: ImageButton,
@@ -63,8 +64,9 @@ class MainActivity : AppCompatActivity() {
         var lastUrl: String? = null,
         var lastTitle: String? = null,
         var autoClickRunnable: Runnable? = null,
-        var autoClickPoints: List<ClickPoint> = emptyList(),
+        var autoClickPoints: MutableList<ClickPoint> = mutableListOf(),
         var autoClickIndex: Int = 0,
+        var isAutoClickEditing: Boolean = false,
         var autoClickIntervalMs: Long = 1000L,
         var isAutoClicking: Boolean = false,
     )
@@ -100,10 +102,17 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         )
 
         definitions.forEachIndexed { index, definition ->
-            val pane = BrowserPane(
-                container = findViewById(definition.paneId),
-                webView = findViewById(definition.webViewId),
-                titleView = findViewById(definition.titleId),
+              val webView = findViewById<WebView>(definition.webViewId)
+              val clickLayer = FrameLayout(this).apply {
+                  visibility = View.GONE
+                  isClickable = false
+              }
+              (webView.parent as? FrameLayout)?.addView(clickLayer, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+              val pane = BrowserPane(
+                  container = findViewById(definition.paneId),
+                  webView = webView,
+                  clickLayer = clickLayer,
+                  titleView = findViewById(definition.titleId),
                 subtitleView = findViewById(definition.subtitleId),
                 navigateButton = findViewById(definition.navigateButtonId),
                 reloadButton = findViewById(definition.reloadButtonId),
@@ -115,6 +124,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 webViewId = definition.webViewId,
             )
             panes += pane
+            configureClickLayer(index)
             configureWebView(pane.webView, pane.profileName, index)
             pane.navigateButton.setOnClickListener { showNavigationDialog(index) }
             pane.reloadButton.setOnClickListener {
@@ -179,13 +189,20 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
 
     private fun toggleFullscreen(index: Int) {
         if (index !in panes.indices || !panes[index].isOpen) return
+        if (fullscreenPaneIndex != null && fullscreenPaneIndex != index) {
+            fullscreenPaneIndex = null
+            applyPaneLayout()
+        }
         fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
         applyPaneLayout()
     }
 
     private fun setPaneOpen(index: Int, open: Boolean) {
         val pane = panes.getOrNull(index) ?: return
-        if (!open) stopAutoClicker(index)
+        if (!open) {
+            stopAutoClicker(index)
+            hideAutoClickerEditor(index)
+        }
         pane.isOpen = open
         if (!open && fullscreenPaneIndex == index) fullscreenPaneIndex = null
         if (open) {
@@ -205,6 +222,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         pane.isOpen = open
         pane.webView.visibility = if (open) View.VISIBLE else View.GONE
         pane.emptyState.visibility = if (open) View.GONE else View.VISIBLE
+        pane.clickLayer.visibility = if (open && pane.isAutoClickEditing) View.VISIBLE else View.GONE
         pane.navigateButton.visibility = if (open) View.VISIBLE else View.GONE
         pane.reloadButton.visibility = if (open) View.VISIBLE else View.GONE
         pane.fullscreenButton.visibility = if (open) View.VISIBLE else View.GONE
@@ -283,10 +301,10 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
         if (selectedIndex >= 0) {
-            stopAutoClicker(selectedIndex)
+            hideAutoClickerEditor(selectedIndex)
             val pane = panes[selectedIndex]
             fullscreenOverlay.removeView(pane.container)
-            grid.addView(pane.container, paneLayoutParams(selectedIndex))
+            grid.addView(pane.container, selectedIndex, paneLayoutParams(selectedIndex))
         }
         fullscreenOverlay.visibility = View.GONE
         findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
@@ -320,7 +338,11 @@ grid.visibility = View.VISIBLE
               pane.closeButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
               pane.closeButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
               pane.closeButton.setOnClickListener {
-                  if (pane.isAutoClicking) stopAutoClicker(index, true) else showAutoClickerDialog(index)
+                  when {
+                      pane.isAutoClicking -> stopAutoClicker(index, true)
+                      pane.isAutoClickEditing -> renderAutoClickEditor(index)
+                      else -> showAutoClickerDialog(index)
+                  }
               }
           } else {
               pane.closeButton.setImageResource(R.drawable.ic_close)
@@ -331,87 +353,143 @@ grid.visibility = View.VISIBLE
           }
       }
 
+      private fun configureClickLayer(index: Int) {
+          val pane = panes.getOrNull(index) ?: return
+          pane.clickLayer.setOnTouchListener { _, event ->
+              if (!pane.isAutoClickEditing || pane.isAutoClicking) return@setOnTouchListener false
+              if (event.actionMasked == MotionEvent.ACTION_UP) addAutoClickPoint(index, event.x, event.y)
+              true
+          }
+      }
+
       private fun showAutoClickerDialog(index: Int) {
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isOpen) return
-          val form = LinearLayout(this).apply {
-              orientation = LinearLayout.VERTICAL
-              setPadding(24, 0, 24, 0)
-          }
           val intervalInput = EditText(this).apply {
               inputType = InputType.TYPE_CLASS_NUMBER
               hint = getString(R.string.auto_clicker_interval_hint)
               setText(pane.autoClickIntervalMs.toString())
               setSingleLine(true)
+              setPadding(24, 0, 24, 0)
           }
-          val pointsInput = EditText(this).apply {
-              inputType = InputType.TYPE_CLASS_TEXT
-              hint = getString(R.string.auto_clicker_points_hint)
-              val savedPoints = pane.autoClickPoints.joinToString(";") { point -> point.x.toInt().toString() + "," + point.y.toInt().toString() }
-              setText(savedPoints.ifBlank { "200,200" })
-              setSingleLine(true)
-          }
-          val multipleToggle = CheckBox(this).apply {
-              text = getString(R.string.auto_clicker_multiple)
-              isChecked = pane.autoClickPoints.size > 1
-          }
-          form.addView(intervalInput)
-          form.addView(pointsInput)
-          form.addView(multipleToggle)
           val dialog = AlertDialog.Builder(this)
               .setTitle(R.string.auto_clicker_title)
               .setMessage(R.string.auto_clicker_message)
-              .setView(form)
+              .setView(intervalInput)
               .setNegativeButton(R.string.cancel, null)
               .setPositiveButton(R.string.auto_clicker_start, null)
               .create()
           dialog.setOnShowListener {
               dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
                   val interval = intervalInput.text.toString().trim().toLongOrNull()
-                  val points = parseClickPoints(pointsInput.text.toString(), multipleToggle.isChecked)
-                  when {
-                      interval == null || interval !in 100L..600000L -> Toast.makeText(this, R.string.auto_clicker_invalid_interval, Toast.LENGTH_SHORT).show()
-                      points.isEmpty() -> Toast.makeText(this, R.string.auto_clicker_invalid_points, Toast.LENGTH_SHORT).show()
-                      else -> {
-                          startAutoClicker(index, points, interval)
-                          dialog.dismiss()
-                      }
+                  if (interval == null || interval !in 100L..600000L) {
+                      Toast.makeText(this, R.string.auto_clicker_invalid_interval, Toast.LENGTH_SHORT).show()
+                  } else {
+                      pane.autoClickIntervalMs = interval
+                      beginAutoClickerEditor(index)
+                      dialog.dismiss()
                   }
               }
           }
           dialog.show()
       }
 
-      private fun parseClickPoints(raw: String, multiple: Boolean): List<ClickPoint> {
-          val entries = raw.split(";").let { if (multiple) it else it.take(1) }
-          return entries.mapNotNull { entry ->
-              val parts = entry.trim().split(",")
-              if (parts.size != 2) return@mapNotNull null
-              val x = parts[0].trim().toFloatOrNull()
-              val y = parts[1].trim().toFloatOrNull()
-              if (x == null || y == null || x < 0f || y < 0f) null else ClickPoint(x, y)
-          }
+      private fun beginAutoClickerEditor(index: Int) {
+          val pane = panes.getOrNull(index) ?: return
+          stopAutoClicker(index)
+          pane.isAutoClickEditing = true
+          pane.clickLayer.visibility = View.VISIBLE
+          pane.clickLayer.isClickable = true
+          pane.clickLayer.post { renderAutoClickEditor(index) }
       }
+
+      private fun hideAutoClickerEditor(index: Int) {
+          val pane = panes.getOrNull(index) ?: return
+          stopAutoClicker(index)
+          pane.isAutoClickEditing = false
+          pane.clickLayer.isClickable = false
+          pane.clickLayer.visibility = View.GONE
+          pane.clickLayer.removeAllViews()
+      }
+
+      private fun addAutoClickPoint(index: Int, x: Float, y: Float) {
+          val pane = panes.getOrNull(index) ?: return
+          if (!pane.isAutoClickEditing || pane.isAutoClicking) return
+          val maxX = (pane.clickLayer.width - 1).coerceAtLeast(0).toFloat()
+          val maxY = (pane.clickLayer.height - 1).coerceAtLeast(0).toFloat()
+          pane.autoClickPoints.add(ClickPoint(x.coerceIn(0f, maxX), y.coerceIn(0f, maxY)))
+          renderAutoClickEditor(index)
+      }
+
+      private fun removeAllAutoClickPoints(index: Int) {
+          val pane = panes.getOrNull(index) ?: return
+          stopAutoClicker(index)
+          pane.autoClickPoints.clear()
+          pane.isAutoClickEditing = true
+          pane.clickLayer.visibility = View.VISIBLE
+          renderAutoClickEditor(index)
+      }
+
+      private fun renderAutoClickEditor(index: Int) {
+          val pane = panes.getOrNull(index) ?: return
+          if (!pane.isAutoClickEditing) return
+          val layer = pane.clickLayer
+          layer.visibility = View.VISIBLE
+          layer.removeAllViews()
+          val markerSize = dp(42)
+          pane.autoClickPoints.forEachIndexed { pointIndex, point ->
+              val marker = TextView(this).apply {
+                  text = (pointIndex + 1).toString()
+                  gravity = Gravity.CENTER
+                  setTextColor(getColor(R.color.text_primary))
+                  setTextSize(12f)
+                  setBackgroundResource(R.drawable.bg_theme_button)
+                  elevation = dp(4).toFloat()
+                  layoutParams = FrameLayout.LayoutParams(markerSize, markerSize)
+                  x = (point.x - markerSize / 2f).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
+                  y = (point.y - markerSize / 2f).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
+              }
+              var startRawX = 0f; var startRawY = 0f; var startViewX = 0f; var startViewY = 0f
+              marker.setOnTouchListener { view, event ->
+                  if (pane.isAutoClicking) return@setOnTouchListener false
+                  when (event.actionMasked) {
+                      MotionEvent.ACTION_DOWN -> { startRawX = event.rawX; startRawY = event.rawY; startViewX = view.x; startViewY = view.y; true }
+                      MotionEvent.ACTION_MOVE -> {
+                          view.x = (startViewX + event.rawX - startRawX).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
+                          view.y = (startViewY + event.rawY - startRawY).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
+                          true
+                      }
+                      MotionEvent.ACTION_UP -> { point.x = view.x + markerSize / 2f; point.y = view.y + markerSize / 2f; true }
+                      else -> true
+                  }
+              }
+              layer.addView(marker)
+          }
+          val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(8), dp(6), dp(8), dp(6)); setBackgroundResource(R.drawable.bg_pane_toolbar); elevation = dp(8).toFloat() }
+          val hint = TextView(this).apply { text = getString(R.string.auto_clicker_edit_hint); setTextColor(getColor(R.color.text_primary)); setTextSize(12f); setPadding(dp(4), 0, dp(4), dp(4)) }
+          panel.addView(hint, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+          val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+          fun actionButton(label: Int, click: () -> Unit): Button = Button(this).apply { text = getString(label); setTextSize(10f); minimumWidth = 0; minimumHeight = dp(38); setPadding(dp(4), 0, dp(4), 0); setOnClickListener { click() } }
+          row.addView(actionButton(R.string.auto_clicker_add_point) { pane.isAutoClickEditing = true; pane.clickLayer.visibility = View.VISIBLE; Toast.makeText(this, R.string.auto_clicker_add_point_hint, Toast.LENGTH_SHORT).show() }, LinearLayout.LayoutParams(0, dp(42), 1f))
+          row.addView(actionButton(R.string.auto_clicker_play) { if (pane.autoClickPoints.isEmpty()) Toast.makeText(this, R.string.auto_clicker_need_point, Toast.LENGTH_SHORT).show() else startAutoClicker(index, pane.autoClickPoints, pane.autoClickIntervalMs) }, LinearLayout.LayoutParams(0, dp(42), 1f))
+          row.addView(actionButton(R.string.auto_clicker_pause) { stopAutoClicker(index, true); pane.isAutoClickEditing = true; renderAutoClickEditor(index) }, LinearLayout.LayoutParams(0, dp(42), 1f))
+          row.addView(actionButton(R.string.auto_clicker_remove) { removeAllAutoClickPoints(index) }, LinearLayout.LayoutParams(0, dp(42), 1f))
+          panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+          layer.addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP })
+      }
+
+      private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt().coerceAtLeast(1)
 
       private fun startAutoClicker(index: Int, points: List<ClickPoint>, intervalMs: Long) {
           val pane = panes.getOrNull(index) ?: return
+          if (points.isEmpty()) { Toast.makeText(this, R.string.auto_clicker_need_point, Toast.LENGTH_SHORT).show(); return }
           stopAutoClicker(index)
-          pane.autoClickPoints = points
-          pane.autoClickIndex = 0
-          pane.autoClickIntervalMs = intervalMs
-          pane.isAutoClicking = true
+          pane.autoClickPoints = points.toMutableList(); pane.autoClickIndex = 0; pane.autoClickIntervalMs = intervalMs; pane.isAutoClicking = true; pane.isAutoClickEditing = true; pane.clickLayer.visibility = View.VISIBLE
           val runnable = object : Runnable {
               override fun run() {
                   val currentPane = panes.getOrNull(index)
-                  if (currentPane == null || !currentPane.isOpen || currentPane.webView.visibility != View.VISIBLE || currentPane.webView.width <= 0 || currentPane.webView.height <= 0) {
-                      stopAutoClicker(index)
-                      return
-                  }
-                  val point = currentPane.autoClickPoints.getOrNull(currentPane.autoClickIndex)
-                  if (point == null) {
-                      stopAutoClicker(index)
-                      return
-                  }
+                  if (currentPane == null || !currentPane.isOpen || currentPane.webView.visibility != View.VISIBLE || currentPane.webView.width <= 0 || currentPane.webView.height <= 0) { stopAutoClicker(index); return }
+                  val point = currentPane.autoClickPoints.getOrNull(currentPane.autoClickIndex) ?: run { stopAutoClicker(index); return }
                   dispatchClick(currentPane.webView, point)
                   currentPane.autoClickIndex = (currentPane.autoClickIndex + 1) % currentPane.autoClickPoints.size
                   autoClickHandler.postDelayed(this, currentPane.autoClickIntervalMs)
@@ -425,26 +503,15 @@ grid.visibility = View.VISIBLE
 
       private fun stopAutoClicker(index: Int, notify: Boolean = false) {
           val pane = panes.getOrNull(index) ?: return
-          pane.autoClickRunnable?.let(autoClickHandler::removeCallbacks)
-          pane.autoClickRunnable = null
-          pane.autoClickIndex = 0
-          pane.isAutoClicking = false
+          pane.autoClickRunnable?.let(autoClickHandler::removeCallbacks); pane.autoClickRunnable = null; pane.autoClickIndex = 0; pane.isAutoClicking = false
           if (fullscreenPaneIndex == index) setPaneActionState(index, true)
           if (notify) Toast.makeText(this, R.string.auto_clicker_stopped, Toast.LENGTH_SHORT).show()
       }
 
       private fun dispatchClick(webView: WebView, point: ClickPoint) {
-          val maxX = (webView.width - 1).coerceAtLeast(1).toFloat()
-          val maxY = (webView.height - 1).coerceAtLeast(1).toFloat()
-          val x = point.x.coerceIn(0f, maxX)
-          val y = point.y.coerceIn(0f, maxY)
-          val downTime = SystemClock.uptimeMillis()
-          val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0)
-          val up = MotionEvent.obtain(downTime, downTime + 40L, MotionEvent.ACTION_UP, x, y, 0)
-          webView.dispatchTouchEvent(down)
-          webView.dispatchTouchEvent(up)
-          down.recycle()
-          up.recycle()
+          val maxX = (webView.width - 1).coerceAtLeast(1).toFloat(); val maxY = (webView.height - 1).coerceAtLeast(1).toFloat(); val x = point.x.coerceIn(0f, maxX); val y = point.y.coerceIn(0f, maxY); val downTime = SystemClock.uptimeMillis()
+          val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0); val up = MotionEvent.obtain(downTime, downTime + 40L, MotionEvent.ACTION_UP, x, y, 0)
+          webView.dispatchTouchEvent(down); webView.dispatchTouchEvent(up); down.recycle(); up.recycle()
       }
 
         private fun toggleTheme() {
