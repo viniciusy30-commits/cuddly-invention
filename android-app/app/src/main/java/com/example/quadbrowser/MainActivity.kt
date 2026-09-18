@@ -12,20 +12,27 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
 class MainActivity : AppCompatActivity() {
 
     private data class BrowserPane(
+        val container: View,
         val webView: WebView,
         val addressBar: EditText,
+        val fullscreenButton: Button,
     )
 
     private val panes = mutableListOf<BrowserPane>()
+    private var fullscreenPaneIndex: Int? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableImmersiveMode()
         setContentView(R.layout.activity_main)
 
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
@@ -34,15 +41,17 @@ class MainActivity : AppCompatActivity() {
         }
 
         val paneDefinitions = listOf(
-            PaneDefinition(R.id.address_1, R.id.go_1, R.id.reload_1, R.id.webview_1, "webview1"),
-            PaneDefinition(R.id.address_2, R.id.go_2, R.id.reload_2, R.id.webview_2, "webview2"),
-            PaneDefinition(R.id.address_3, R.id.go_3, R.id.reload_3, R.id.webview_3, "webview3"),
-            PaneDefinition(R.id.address_4, R.id.go_4, R.id.reload_4, R.id.webview_4, "webview4"),
+            PaneDefinition(R.id.pane_1, R.id.address_1, R.id.go_1, R.id.reload_1, R.id.fullscreen_1, R.id.webview_1, "webview1"),
+            PaneDefinition(R.id.pane_2, R.id.address_2, R.id.go_2, R.id.reload_2, R.id.fullscreen_2, R.id.webview_2, "webview2"),
+            PaneDefinition(R.id.pane_3, R.id.address_3, R.id.go_3, R.id.reload_3, R.id.fullscreen_3, R.id.webview_3, "webview3"),
+            PaneDefinition(R.id.pane_4, R.id.address_4, R.id.go_4, R.id.reload_4, R.id.fullscreen_4, R.id.webview_4, "webview4"),
         )
 
         paneDefinitions.forEachIndexed { index, definition ->
+            val container = findViewById<View>(definition.paneId)
             val webView = findViewById<WebView>(definition.webViewId)
             val addressBar = findViewById<EditText>(definition.addressId)
+            val fullscreenButton = findViewById<Button>(definition.fullscreenButtonId)
             configureWebView(webView, definition.profileName, addressBar)
 
             findViewById<Button>(definition.goButtonId).setOnClickListener {
@@ -55,13 +64,61 @@ class MainActivity : AppCompatActivity() {
                 loadInput(webView, addressBar)
                 true
             }
+            fullscreenButton.setOnClickListener {
+                toggleFullscreen(index)
+            }
 
             if (savedInstanceState != null) {
                 webView.restoreState(savedInstanceState)
             }
 
-            panes += BrowserPane(webView, addressBar)
+            panes += BrowserPane(container, webView, addressBar, fullscreenButton)
             webView.contentDescription = getString(R.string.webview_description, index + 1)
+        }
+    }
+
+    private fun toggleFullscreen(index: Int) {
+        fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
+
+        val isFullscreen = fullscreenPaneIndex != null
+        findViewById<android.widget.GridLayout>(R.id.browser_grid).apply {
+            columnCount = if (isFullscreen) 1 else 2
+            rowCount = if (isFullscreen) 1 else 2
+        }
+
+        panes.forEachIndexed { paneIndex, pane ->
+            val isSelected = paneIndex == fullscreenPaneIndex
+            pane.container.visibility = if (!isFullscreen || isSelected) View.VISIBLE else View.GONE
+            pane.fullscreenButton.text = getString(
+                if (isSelected && isFullscreen) {
+                    R.string.fullscreen_exit_symbol
+                } else {
+                    R.string.fullscreen_enter_symbol
+                },
+            )
+            pane.fullscreenButton.contentDescription = getString(
+                if (isSelected && isFullscreen) {
+                    R.string.fullscreen_exit
+                } else {
+                    R.string.fullscreen_enter
+                },
+            )
+        }
+    }
+
+    private fun enableImmersiveMode() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            hide(WindowInsetsCompat.Type.systemBars())
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            enableImmersiveMode()
         }
     }
 
@@ -161,9 +218,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private data class PaneDefinition(
+        val paneId: Int,
         val addressId: Int,
         val goButtonId: Int,
         val reloadButtonId: Int,
+        val fullscreenButtonId: Int,
         val webViewId: Int,
         val profileName: String,
     )
