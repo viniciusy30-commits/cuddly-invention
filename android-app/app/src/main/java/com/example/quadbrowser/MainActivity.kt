@@ -58,6 +58,7 @@ class MainActivity : AppCompatActivity() {
         val navigateButton: ImageButton,
         val reloadButton: ImageButton,
         val fullscreenButton: ImageButton,
+        val autoClickButton: ImageButton,
         val closeButton: ImageButton,
         val emptyState: View,
         val reopenButton: Button,
@@ -98,10 +99,10 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         }
 
         val definitions = listOf(
-            PaneDefinition(R.id.pane_1, R.id.pane_title_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
-            PaneDefinition(R.id.pane_2, R.id.pane_title_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
-            PaneDefinition(R.id.pane_3, R.id.pane_title_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
-            PaneDefinition(R.id.pane_4, R.id.pane_title_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
+            PaneDefinition(R.id.pane_1, R.id.pane_title_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
+            PaneDefinition(R.id.pane_2, R.id.pane_title_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
+            PaneDefinition(R.id.pane_3, R.id.pane_title_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
+            PaneDefinition(R.id.pane_4, R.id.pane_title_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
         )
 
         definitions.forEachIndexed { index, definition ->
@@ -120,6 +121,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 navigateButton = findViewById(definition.navigateButtonId),
                 reloadButton = findViewById(definition.reloadButtonId),
                 fullscreenButton = findViewById(definition.fullscreenButtonId),
+                 autoClickButton = findViewById(definition.autoClickButtonId),
                 closeButton = findViewById(definition.closeButtonId),
                 emptyState = findViewById(definition.emptyStateId),
                 reopenButton = findViewById(definition.reopenButtonId),
@@ -143,12 +145,16 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                   }
               }
             pane.fullscreenButton.setOnClickListener { toggleFullscreen(index) }
+             pane.autoClickButton.setOnClickListener {
+                 if (pane.isAutoClicking) stopAutoClicker(index, true) else beginAutoClickerEditor(index)
+             }
             pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
             pane.reopenButton.setOnClickListener { setPaneOpen(index, true) }
             restorePaneState(index, pane.webView, savedInstanceState)
             val open = savedInstanceState?.getBoolean(paneOpenKey(index))
                 ?: getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(paneOpenKey(index), true)
             applyPaneOpenUi(index, open)
+             setPaneActionState(index)
             pane.webView.contentDescription = getString(R.string.webview_description, index + 1)
         }
 
@@ -295,7 +301,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         pane.container.visibility = View.VISIBLE
         panes.forEachIndexed { paneIndex, browserPane ->
             setFullscreenButtonState(browserPane, paneIndex == index)
-            setPaneActionState(paneIndex, paneIndex == index)
+            setPaneActionState(paneIndex)
         }
         fullscreenOverlay.requestLayout()
     }
@@ -316,7 +322,7 @@ grid.visibility = View.VISIBLE
             pane.container.visibility = View.VISIBLE
             applyPaneOpenUi(index, pane.isOpen)
             setFullscreenButtonState(pane, false)
-            setPaneActionState(index, false)
+            setPaneActionState(index)
         }
         grid.requestLayout()
     }
@@ -333,26 +339,18 @@ grid.visibility = View.VISIBLE
       }
 
 
-      private fun setPaneActionState(index: Int, fullscreenSelected: Boolean) {
+      private fun setPaneActionState(index: Int) {
           val pane = panes.getOrNull(index) ?: return
-          if (fullscreenSelected) {
-              pane.closeButton.setImageResource(R.drawable.ic_auto_click)
-              pane.closeButton.setBackgroundResource(if (pane.isAutoClicking) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
-              pane.closeButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
-              pane.closeButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
-              pane.closeButton.setOnClickListener {
-                  when {
-                      pane.isAutoClicking -> stopAutoClicker(index, true)
-                      else -> beginAutoClickerEditor(index)
-                  }
-              }
-          } else {
-              pane.closeButton.setImageResource(R.drawable.ic_close)
-              pane.closeButton.setBackgroundResource(R.drawable.bg_danger_button)
-              pane.closeButton.setColorFilter(getColor(R.color.danger))
-              pane.closeButton.contentDescription = getString(R.string.close_instance)
-              pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
-          }
+          pane.autoClickButton.setImageResource(R.drawable.ic_auto_click)
+          pane.autoClickButton.setBackgroundResource(if (pane.isAutoClicking) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
+          pane.autoClickButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
+          pane.autoClickButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
+          pane.autoClickButton.visibility = if (pane.isOpen) View.VISIBLE else View.GONE
+          pane.closeButton.setImageResource(R.drawable.ic_close)
+          pane.closeButton.setBackgroundResource(R.drawable.bg_danger_button)
+          pane.closeButton.setColorFilter(getColor(R.color.danger))
+          pane.closeButton.contentDescription = getString(R.string.close_instance)
+          pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
       }
 
       private fun configureClickLayer(index: Int) {
@@ -417,10 +415,19 @@ grid.visibility = View.VISIBLE
               setSelection(text.length)
           }
           val content = LinearLayout(this).apply {
-              orientation = LinearLayout.HORIZONTAL
-              setPadding(dp(20), dp(4), dp(20), 0)
-              addView(amount, LinearLayout.LayoutParams(0, dp(52), 2f))
-              addView(unitSpinner, LinearLayout.LayoutParams(0, dp(52), 1.2f))
+               orientation = LinearLayout.VERTICAL
+               setPadding(dp(20), dp(4), dp(20), 0)
+               addView(TextView(this@MainActivity).apply {
+                   text = getString(R.string.auto_clicker_interval_label)
+                   setTextColor(getColor(R.color.text_secondary))
+                   setTextSize(12f)
+               }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+               addView(LinearLayout(this@MainActivity).apply {
+                   orientation = LinearLayout.HORIZONTAL
+                   gravity = Gravity.CENTER_VERTICAL
+                   addView(amount, LinearLayout.LayoutParams(0, dp(52), 1.5f))
+                   addView(unitSpinner, LinearLayout.LayoutParams(0, dp(52), 1f))
+               }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
           }
           val dialog = AlertDialog.Builder(this)
               .setTitle(getString(R.string.auto_clicker_point_title, pointIndex + 1))
@@ -521,13 +528,12 @@ grid.visibility = View.VISIBLE
               setPadding(dp(3), 0, dp(4), 0)
           }
           header.addView(hint, LinearLayout.LayoutParams(0, dp(34), 1f))
-          val close = TextView(this).apply {
-              text = "×"
-              gravity = Gravity.CENTER
-              setTextColor(getColor(R.color.text_primary))
-              setTextSize(22f)
+           val close = ImageButton(this).apply {
+               setImageResource(R.drawable.ic_close)
               contentDescription = getString(R.string.auto_clicker_close)
               setBackgroundResource(R.drawable.bg_icon_button)
+               setColorFilter(getColor(R.color.text_primary))
+               setPadding(dp(8), dp(8), dp(8), dp(8))
               setOnClickListener { hideAutoClickerEditor(index) }
           }
           header.addView(close, LinearLayout.LayoutParams(dp(36), dp(34)))
@@ -581,7 +587,7 @@ grid.visibility = View.VISIBLE
               }
           }
           pane.autoClickRunnable = runnable
-          setPaneActionState(index, fullscreenPaneIndex == index)
+          setPaneActionState(index)
           autoClickHandler.post(runnable)
           Toast.makeText(this, R.string.auto_clicker_started, Toast.LENGTH_SHORT).show()
       }
@@ -592,7 +598,7 @@ grid.visibility = View.VISIBLE
           pane.autoClickRunnable = null
           pane.autoClickIndex = 0
           pane.isAutoClicking = false
-          if (fullscreenPaneIndex == index) setPaneActionState(index, true)
+          setPaneActionState(index)
           if (notify) Toast.makeText(this, R.string.auto_clicker_stopped, Toast.LENGTH_SHORT).show()
       }
 
@@ -750,6 +756,7 @@ grid.visibility = View.VISIBLE
         val navigateButtonId: Int,
         val reloadButtonId: Int,
         val fullscreenButtonId: Int,
+        val autoClickButtonId: Int,
         val closeButtonId: Int,
         val emptyStateId: Int,
         val reopenButtonId: Int,
