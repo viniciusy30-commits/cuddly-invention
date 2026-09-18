@@ -2,7 +2,6 @@ package com.example.quadbrowser
 
 import android.content.res.Configuration
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.util.Patterns
 import android.view.View
@@ -17,9 +16,6 @@ import android.widget.GridLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
@@ -55,7 +51,6 @@ class MainActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        applySystemUiMode()
 
         findViewById<Button>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
@@ -132,13 +127,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun toggleFullscreen(index: Int) {
-        if (index !in panes.indices) return
-        fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
-        applyPaneLayout()
-        applySystemUiMode()
-    }
+          if (index !in panes.indices) return
 
-    /**
+          // In-app focus mode only: keep system bars, orientation, window flags,
+          // and the Activity lifecycle unchanged.
+          fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
+          applyPaneLayout()
+      }
+
+        /**
      * Keep the existing WebViews alive while Android resizes a freeform or
      * floating window. Recreating the Activity here can restore the wrong
      * WebView snapshot into every quadrant.
@@ -150,7 +147,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
         super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
-        applySystemUiMode()
         window.decorView.post { applyPaneLayout() }
     }
 
@@ -239,30 +235,6 @@ class MainActivity : AppCompatActivity() {
         button.contentDescription = getString(
             if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark,
         )
-    }
-
-    private fun applySystemUiMode() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode) {
-            WindowCompat.setDecorFitsSystemWindows(window, true)
-            WindowInsetsControllerCompat(window, window.decorView)
-                .show(WindowInsetsCompat.Type.systemBars())
-        } else {
-            enableImmersiveMode()
-        }
-    }
-
-    private fun enableImmersiveMode() {
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.systemBars())
-            systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applySystemUiMode()
     }
 
     private fun configureWebView(
