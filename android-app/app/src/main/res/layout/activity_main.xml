@@ -1,289 +1,472 @@
 <?xml version="1.0" encoding="utf-8"?>
-    <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-      android:layout_width="match_parent"
-      android:layout_height="match_parent"
-      android:background="@color/grid_background"
-      android:fitsSystemWindows="true"
-      android:orientation="vertical">
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/app_background"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
 
-      <LinearLayout
-          android:id="@+id/app_toolbar"
-          android:layout_width="match_parent"
-          android:layout_height="48dp"
-          android:background="@color/toolbar_background"
-          android:elevation="4dp"
-          android:gravity="center_vertical"
-          android:orientation="horizontal"
-          android:paddingStart="16dp"
-          android:paddingEnd="8dp">
+    <LinearLayout
+        android:id="@+id/app_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="76dp"
+        android:background="@drawable/bg_app_toolbar"
+        android:elevation="6dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="18dp"
+        android:paddingEnd="14dp">
 
-          <TextView
-              android:id="@+id/app_title"
-              style="@style/AppTitle"
-              android:text="@string/app_name" />
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-          <Space
-              android:layout_width="0dp"
-              android:layout_height="1dp"
-              android:layout_weight="1" />
+            <TextView
+                android:id="@+id/app_title"
+                style="@style/AppTitle"
+                android:text="@string/app_name" />
 
-          <Button
-              android:id="@+id/theme_toggle"
-              style="@style/ThemeButton"
-              android:contentDescription="@string/theme_switch_to_dark"
-              android:text="@string/theme_dark" />
-      </LinearLayout>
+            <TextView
+                android:id="@+id/app_subtitle"
+                style="@style/AppSubtitle"
+                android:layout_marginTop="2dp"
+                android:text="@string/app_subtitle" />
+        </LinearLayout>
 
-      <FrameLayout
-          android:id="@+id/browser_content"
-          android:layout_width="match_parent"
-          android:layout_height="0dp"
-          android:layout_weight="1">
-
-          <GridLayout
-              android:id="@+id/browser_grid"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="@color/grid_background"
-              android:columnCount="2"
-              android:rowCount="2"
-              android:useDefaultMargins="false">
-    
-          <LinearLayout
-              android:id="@+id/pane_1"
-              android:layout_width="0dp"
-              android:layout_height="0dp"
-              android:layout_columnWeight="1"
-              android:layout_rowWeight="1"
-              android:layout_margin="1dp"
-              android:background="@color/pane_background"
-              android:orientation="vertical">
-
-              <LinearLayout
-                  android:layout_width="match_parent"
-                  android:layout_height="44dp"
-                  android:background="@color/toolbar_background"
-                  android:gravity="center_vertical"
-                  android:orientation="horizontal"
-                  android:paddingStart="4dp"
-                  android:paddingEnd="3dp">
-
-                  <EditText
-                      android:id="@+id/address_1"
-                      style="@style/AddressBar"
-                      android:hint="@string/address_hint"
-                      android:imeOptions="actionGo"
-                      android:inputType="textUri"
-                      android:maxLines="1" />
-
-                  <Button
-                      android:id="@+id/go_1"
-                      style="@style/ToolbarButton"
-                      android:text="@string/go" />
-
-                  <Button
-                      android:id="@+id/reload_1"
-                      style="@style/ToolbarButton"
-                      android:contentDescription="@string/reload"
-                      android:text="@string/reload_symbol" />
-
-                  <Button
-                      android:id="@+id/fullscreen_1"
-                      style="@style/FullscreenButton"
-                      android:contentDescription="@string/fullscreen_enter"
-                      android:text="@string/fullscreen_enter_symbol" />
-              </LinearLayout>
-
-              <WebView
-                  android:id="@+id/webview_1"
-                  style="@style/BrowserWebView"
-                  android:contentDescription="@string/webview_description_1" />
-          </LinearLayout>
-    
-          <LinearLayout
-              android:id="@+id/pane_2"
-              android:layout_width="0dp"
-              android:layout_height="0dp"
-              android:layout_columnWeight="1"
-              android:layout_rowWeight="1"
-              android:layout_margin="1dp"
-              android:background="@color/pane_background"
-              android:orientation="vertical">
-
-              <LinearLayout
-                  android:layout_width="match_parent"
-                  android:layout_height="44dp"
-                  android:background="@color/toolbar_background"
-                  android:gravity="center_vertical"
-                  android:orientation="horizontal"
-                  android:paddingStart="4dp"
-                  android:paddingEnd="3dp">
-
-                  <EditText
-                      android:id="@+id/address_2"
-                      style="@style/AddressBar"
-                      android:hint="@string/address_hint"
-                      android:imeOptions="actionGo"
-                      android:inputType="textUri"
-                      android:maxLines="1" />
-
-                  <Button
-                      android:id="@+id/go_2"
-                      style="@style/ToolbarButton"
-                      android:text="@string/go" />
-
-                  <Button
-                      android:id="@+id/reload_2"
-                      style="@style/ToolbarButton"
-                      android:contentDescription="@string/reload"
-                      android:text="@string/reload_symbol" />
-
-                  <Button
-                      android:id="@+id/fullscreen_2"
-                      style="@style/FullscreenButton"
-                      android:contentDescription="@string/fullscreen_enter"
-                      android:text="@string/fullscreen_enter_symbol" />
-              </LinearLayout>
-
-              <WebView
-                  android:id="@+id/webview_2"
-                  style="@style/BrowserWebView"
-                  android:contentDescription="@string/webview_description_2" />
-          </LinearLayout>
-    
-          <LinearLayout
-              android:id="@+id/pane_3"
-              android:layout_width="0dp"
-              android:layout_height="0dp"
-              android:layout_columnWeight="1"
-              android:layout_rowWeight="1"
-              android:layout_margin="1dp"
-              android:background="@color/pane_background"
-              android:orientation="vertical">
-
-              <LinearLayout
-                  android:layout_width="match_parent"
-                  android:layout_height="44dp"
-                  android:background="@color/toolbar_background"
-                  android:gravity="center_vertical"
-                  android:orientation="horizontal"
-                  android:paddingStart="4dp"
-                  android:paddingEnd="3dp">
-
-                  <EditText
-                      android:id="@+id/address_3"
-                      style="@style/AddressBar"
-                      android:hint="@string/address_hint"
-                      android:imeOptions="actionGo"
-                      android:inputType="textUri"
-                      android:maxLines="1" />
-
-                  <Button
-                      android:id="@+id/go_3"
-                      style="@style/ToolbarButton"
-                      android:text="@string/go" />
-
-                  <Button
-                      android:id="@+id/reload_3"
-                      style="@style/ToolbarButton"
-                      android:contentDescription="@string/reload"
-                      android:text="@string/reload_symbol" />
-
-                  <Button
-                      android:id="@+id/fullscreen_3"
-                      style="@style/FullscreenButton"
-                      android:contentDescription="@string/fullscreen_enter"
-                      android:text="@string/fullscreen_enter_symbol" />
-              </LinearLayout>
-
-              <WebView
-                  android:id="@+id/webview_3"
-                  style="@style/BrowserWebView"
-                  android:contentDescription="@string/webview_description_3" />
-          </LinearLayout>
-    
-          <LinearLayout
-              android:id="@+id/pane_4"
-              android:layout_width="0dp"
-              android:layout_height="0dp"
-              android:layout_columnWeight="1"
-              android:layout_rowWeight="1"
-              android:layout_margin="1dp"
-              android:background="@color/pane_background"
-              android:orientation="vertical">
-
-              <LinearLayout
-                  android:layout_width="match_parent"
-                  android:layout_height="44dp"
-                  android:background="@color/toolbar_background"
-                  android:gravity="center_vertical"
-                  android:orientation="horizontal"
-                  android:paddingStart="4dp"
-                  android:paddingEnd="3dp">
-
-                  <EditText
-                      android:id="@+id/address_4"
-                      style="@style/AddressBar"
-                      android:hint="@string/address_hint"
-                      android:imeOptions="actionGo"
-                      android:inputType="textUri"
-                      android:maxLines="1" />
-
-                  <Button
-                      android:id="@+id/go_4"
-                      style="@style/ToolbarButton"
-                      android:text="@string/go" />
-
-                  <Button
-                      android:id="@+id/reload_4"
-                      style="@style/ToolbarButton"
-                      android:contentDescription="@string/reload"
-                      android:text="@string/reload_symbol" />
-
-                  <Button
-                      android:id="@+id/fullscreen_4"
-                      style="@style/FullscreenButton"
-                      android:contentDescription="@string/fullscreen_enter"
-                      android:text="@string/fullscreen_enter_symbol" />
-              </LinearLayout>
-
-              <WebView
-                  android:id="@+id/webview_4"
-                  style="@style/BrowserWebView"
-                  android:contentDescription="@string/webview_description_4" />
-          </LinearLayout>
-          </GridLayout>
-
-          <FrameLayout
-              android:id="@+id/fullscreen_overlay"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="@color/pane_background"
-              android:elevation="8dp"
-              android:visibility="gone" />
-
-          <Button
-              android:id="@+id/fullscreen_exit_overlay"
-              style="@style/FullscreenOverlayExit"
-              android:layout_width="44dp"
-              android:layout_height="44dp"
-              android:layout_gravity="top|end"
-              android:layout_margin="8dp"
-              android:contentDescription="@string/fullscreen_exit"
-              android:text="@string/fullscreen_exit_symbol"
-              android:visibility="gone" />
-
-          <TextView
-              android:id="@+id/profile_error"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent"
-              android:background="@color/pane_background"
-              android:gravity="center"
-              android:padding="24dp"
-              android:text="@string/multi_profile_unavailable"
-              android:textColor="@color/text_primary"
-              android:textSize="16sp"
-              android:visibility="gone" />
-      </FrameLayout>
+        <ImageButton
+            android:id="@+id/theme_toggle"
+            style="@style/ThemeButton"
+            android:contentDescription="@string/theme_switch_to_dark"
+            android:src="@drawable/ic_moon" />
     </LinearLayout>
-    
+
+    <FrameLayout
+        android:id="@+id/browser_content"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="@color/grid_background"
+        android:padding="3dp">
+
+        <GridLayout
+            android:id="@+id/browser_grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/grid_background"
+            android:columnCount="2"
+            android:rowCount="2"
+            android:useDefaultMargins="false">
+
+        <LinearLayout
+            android:id="@+id/pane_1"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="5dp"
+            android:background="@drawable/bg_pane_card"
+            android:elevation="2dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/pane_toolbar_1"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_pane_toolbar"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    style="@style/PaneBadge"
+                    android:text="01" />
+
+                <EditText
+                    android:id="@+id/address_1"
+                    style="@style/AddressBar"
+                    android:hint="@string/address_hint"
+                    android:imeOptions="actionGo"
+                    android:inputType="textUri"
+                    android:maxLines="1" />
+
+                <Button
+                    android:id="@+id/go_1"
+                    style="@style/ActionButton"
+                    android:text="@string/go" />
+
+                <ImageButton
+                    android:id="@+id/reload_1"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/reload"
+                    android:src="@drawable/ic_refresh" />
+
+                <ImageButton
+                    android:id="@+id/fullscreen_1"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/fullscreen_enter"
+                    android:src="@drawable/ic_expand" />
+
+                <ImageButton
+                    android:id="@+id/close_1"
+                    style="@style/DangerIconButton"
+                    android:contentDescription="@string/close_instance"
+                    android:src="@drawable/ic_close" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/pane_body_1"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/pane_background">
+
+                <WebView
+                    android:id="@+id/webview_1"
+                    style="@style/BrowserWebView"
+                    android:contentDescription="@string/webview_description_1" />
+
+                <LinearLayout
+                    android:id="@+id/empty_state_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@color/pane_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/EmptyTitle"
+                        android:text="@string/instance_closed" />
+
+                    <TextView
+                        style="@style/EmptyDetail"
+                        android:text="@string/instance_closed_detail" />
+
+                    <Button
+                        android:id="@+id/reopen_1"
+                        style="@style/ReopenButton"
+                        android:text="@string/reopen_instance" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/pane_2"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="5dp"
+            android:background="@drawable/bg_pane_card"
+            android:elevation="2dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/pane_toolbar_2"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_pane_toolbar"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    style="@style/PaneBadge"
+                    android:text="02" />
+
+                <EditText
+                    android:id="@+id/address_2"
+                    style="@style/AddressBar"
+                    android:hint="@string/address_hint"
+                    android:imeOptions="actionGo"
+                    android:inputType="textUri"
+                    android:maxLines="1" />
+
+                <Button
+                    android:id="@+id/go_2"
+                    style="@style/ActionButton"
+                    android:text="@string/go" />
+
+                <ImageButton
+                    android:id="@+id/reload_2"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/reload"
+                    android:src="@drawable/ic_refresh" />
+
+                <ImageButton
+                    android:id="@+id/fullscreen_2"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/fullscreen_enter"
+                    android:src="@drawable/ic_expand" />
+
+                <ImageButton
+                    android:id="@+id/close_2"
+                    style="@style/DangerIconButton"
+                    android:contentDescription="@string/close_instance"
+                    android:src="@drawable/ic_close" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/pane_body_2"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/pane_background">
+
+                <WebView
+                    android:id="@+id/webview_2"
+                    style="@style/BrowserWebView"
+                    android:contentDescription="@string/webview_description_2" />
+
+                <LinearLayout
+                    android:id="@+id/empty_state_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@color/pane_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/EmptyTitle"
+                        android:text="@string/instance_closed" />
+
+                    <TextView
+                        style="@style/EmptyDetail"
+                        android:text="@string/instance_closed_detail" />
+
+                    <Button
+                        android:id="@+id/reopen_2"
+                        style="@style/ReopenButton"
+                        android:text="@string/reopen_instance" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/pane_3"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="5dp"
+            android:background="@drawable/bg_pane_card"
+            android:elevation="2dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/pane_toolbar_3"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_pane_toolbar"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    style="@style/PaneBadge"
+                    android:text="03" />
+
+                <EditText
+                    android:id="@+id/address_3"
+                    style="@style/AddressBar"
+                    android:hint="@string/address_hint"
+                    android:imeOptions="actionGo"
+                    android:inputType="textUri"
+                    android:maxLines="1" />
+
+                <Button
+                    android:id="@+id/go_3"
+                    style="@style/ActionButton"
+                    android:text="@string/go" />
+
+                <ImageButton
+                    android:id="@+id/reload_3"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/reload"
+                    android:src="@drawable/ic_refresh" />
+
+                <ImageButton
+                    android:id="@+id/fullscreen_3"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/fullscreen_enter"
+                    android:src="@drawable/ic_expand" />
+
+                <ImageButton
+                    android:id="@+id/close_3"
+                    style="@style/DangerIconButton"
+                    android:contentDescription="@string/close_instance"
+                    android:src="@drawable/ic_close" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/pane_body_3"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/pane_background">
+
+                <WebView
+                    android:id="@+id/webview_3"
+                    style="@style/BrowserWebView"
+                    android:contentDescription="@string/webview_description_3" />
+
+                <LinearLayout
+                    android:id="@+id/empty_state_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@color/pane_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/EmptyTitle"
+                        android:text="@string/instance_closed" />
+
+                    <TextView
+                        style="@style/EmptyDetail"
+                        android:text="@string/instance_closed_detail" />
+
+                    <Button
+                        android:id="@+id/reopen_3"
+                        style="@style/ReopenButton"
+                        android:text="@string/reopen_instance" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+        <LinearLayout
+            android:id="@+id/pane_4"
+            android:layout_width="0dp"
+            android:layout_height="0dp"
+            android:layout_columnWeight="1"
+            android:layout_rowWeight="1"
+            android:layout_gravity="fill"
+            android:layout_margin="5dp"
+            android:background="@drawable/bg_pane_card"
+            android:elevation="2dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/pane_toolbar_4"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_pane_toolbar"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp">
+
+                <TextView
+                    style="@style/PaneBadge"
+                    android:text="04" />
+
+                <EditText
+                    android:id="@+id/address_4"
+                    style="@style/AddressBar"
+                    android:hint="@string/address_hint"
+                    android:imeOptions="actionGo"
+                    android:inputType="textUri"
+                    android:maxLines="1" />
+
+                <Button
+                    android:id="@+id/go_4"
+                    style="@style/ActionButton"
+                    android:text="@string/go" />
+
+                <ImageButton
+                    android:id="@+id/reload_4"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/reload"
+                    android:src="@drawable/ic_refresh" />
+
+                <ImageButton
+                    android:id="@+id/fullscreen_4"
+                    style="@style/IconButton"
+                    android:contentDescription="@string/fullscreen_enter"
+                    android:src="@drawable/ic_expand" />
+
+                <ImageButton
+                    android:id="@+id/close_4"
+                    style="@style/DangerIconButton"
+                    android:contentDescription="@string/close_instance"
+                    android:src="@drawable/ic_close" />
+            </LinearLayout>
+
+            <FrameLayout
+                android:id="@+id/pane_body_4"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:background="@color/pane_background">
+
+                <WebView
+                    android:id="@+id/webview_4"
+                    style="@style/BrowserWebView"
+                    android:contentDescription="@string/webview_description_4" />
+
+                <LinearLayout
+                    android:id="@+id/empty_state_4"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@color/pane_background"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:padding="24dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        style="@style/EmptyTitle"
+                        android:text="@string/instance_closed" />
+
+                    <TextView
+                        style="@style/EmptyDetail"
+                        android:text="@string/instance_closed_detail" />
+
+                    <Button
+                        android:id="@+id/reopen_4"
+                        style="@style/ReopenButton"
+                        android:text="@string/reopen_instance" />
+                </LinearLayout>
+            </FrameLayout>
+        </LinearLayout>
+        </GridLayout>
+
+        <FrameLayout
+            android:id="@+id/fullscreen_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/pane_background"
+            android:elevation="8dp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/fullscreen_exit_overlay"
+            style="@style/FullscreenOverlayExit"
+            android:layout_gravity="top|end"
+            android:contentDescription="@string/fullscreen_exit"
+            android:src="@drawable/ic_close"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/profile_error"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/pane_background"
+            android:gravity="center"
+            android:padding="28dp"
+            android:text="@string/multi_profile_unavailable"
+            android:textColor="@color/text_primary"
+            android:textSize="16sp"
+            android:visibility="gone" />
+    </FrameLayout>
+</LinearLayout>
