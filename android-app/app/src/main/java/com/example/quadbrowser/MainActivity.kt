@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.util.Patterns
 import android.view.View
+import android.view.ViewGroup
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceError
 import android.webkit.WebView
@@ -15,6 +16,7 @@ import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -27,6 +29,9 @@ class MainActivity : AppCompatActivity() {
         const val FULLSCREEN_PANE_KEY = "fullscreen_pane_index"
         const val WEBVIEW_STATE_PREFIX = "webview_state_"
         const val WEBVIEW_URL_PREFIX = "webview_url_"
+        const val PANE_URL_PREFIX = "pane_url_"
+        const val SETTINGS_PREFS = "quad_browser_settings"
+        const val DARK_THEME_KEY = "dark_theme"
     }
 
     private data class BrowserPane(
@@ -38,11 +43,24 @@ class MainActivity : AppCompatActivity() {
 
     private val panes = mutableListOf<BrowserPane>()
     private var fullscreenPaneIndex: Int? = null
+    private var isDarkTheme = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        isDarkTheme = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+            .getBoolean(DARK_THEME_KEY, false)
+        AppCompatDelegate.setDefaultNightMode(
+            if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES
+            else AppCompatDelegate.MODE_NIGHT_NO,
+        )
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         applySystemUiMode()
+
+        findViewById<Button>(R.id.theme_toggle).apply {
+            updateThemeToggle(this)
+            setOnClickListener { toggleTheme() }
+        }
 
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
             showProfileSupportError()
@@ -61,7 +79,7 @@ class MainActivity : AppCompatActivity() {
             val webView = findViewById<WebView>(definition.webViewId)
             val addressBar = findViewById<EditText>(definition.addressId)
             val fullscreenButton = findViewById<Button>(definition.fullscreenButtonId)
-            configureWebView(webView, definition.profileName, addressBar)
+            configureWebView(webView, definition.profileName, index, addressBar)
 
             findViewById<Button>(definition.goButtonId).setOnClickListener {
                 loadInput(webView, addressBar)
@@ -77,14 +95,8 @@ class MainActivity : AppCompatActivity() {
                 toggleFullscreen(index)
             }
 
-            savedInstanceState?.getBundle(webViewStateKey(index))?.let { webViewState ->
-                webView.restoreState(webViewState)
-            }
-            savedInstanceState?.getString(webViewUrlKey(index))?.let { restoredUrl ->
-                if (addressBar.text.isNullOrBlank()) {
-                    addressBar.setText(restoredUrl)
-                }
-            }
+            restorePaneState(index, webView, addressBar, savedInstanceState)
+
 
             panes += BrowserPane(container, webView, addressBar, fullscreenButton)
             webView.contentDescription = getString(R.string.webview_description, index + 1)
@@ -96,9 +108,34 @@ class MainActivity : AppCompatActivity() {
         applyPaneLayout()
     }
 
+    private fun restorePaneState(
+        index: Int,
+        webView: WebView,
+        addressBar: EditText,
+        savedInstanceState: Bundle?,
+    ) {
+        savedInstanceState?.getBundle(webViewStateKey(index))?.let { webViewState ->
+            webView.restoreState(webViewState)
+        }
+
+        val restoredUrl = savedInstanceState?.getString(webViewUrlKey(index))
+            ?: getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+                .getString(paneUrlKey(index), null)
+        val currentUrl = webView.url
+
+        if (currentUrl.isNullOrBlank() && !restoredUrl.isNullOrBlank()) {
+            webView.loadUrl(restoredUrl)
+        } else if (!currentUrl.isNullOrBlank()) {
+            addressBar.setText(currentUrl)
+            addressBar.setSelection(addressBar.text.length)
+        }
+    }
+
     private fun toggleFullscreen(index: Int) {
+        if (index !in panes.indices) return
         fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
         applyPaneLayout()
+        applySystemUiMode()
     }
 
     /**
@@ -121,9 +158,16 @@ class MainActivity : AppCompatActivity() {
         if (panes.isEmpty()) return
 
         val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val appToolbar = findViewById<View>(R.id.app_toolbar)
         val selectedIndex = fullscreenPaneIndex
+        val gridParams = grid.layoutParams as? ViewGroup.MarginLayoutParams
 
         if (selectedIndex == null) {
+            appToolbar.visibility = View.VISIBLE
+            gridParams?.let {
+                it.topMargin = resources.getDimensionPixelSize(R.dimen.app_toolbar_height)
+                grid.layoutParams = it
+            }
             grid.columnCount = 2
             grid.rowCount = 2
             panes.forEachIndexed { index, pane ->
@@ -132,12 +176,16 @@ class MainActivity : AppCompatActivity() {
                 setFullscreenButtonState(pane, selected = false)
             }
         } else {
+            appToolbar.visibility = View.GONE
+            gridParams?.let {
+                it.topMargin = 0
+                grid.layoutParams = it
+            }
             // Hide the other children before changing the grid to one cell so
             // GridLayout never tries to place stale positions in a 1x1 grid.
             panes.forEach { pane -> pane.container.visibility = View.GONE }
             grid.columnCount = 1
             grid.rowCount = 1
-
             panes.forEachIndexed { index, pane ->
                 val selected = index == selectedIndex
                 if (selected) {
@@ -165,13 +213,31 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
-        val isFullscreen = fullscreenPaneIndex != null
-        val isSelected = isFullscreen && selected
         pane.fullscreenButton.text = getString(
-            if (isSelected) R.string.fullscreen_exit_symbol else R.string.fullscreen_enter_symbol,
+            if (selected) R.string.fullscreen_exit_symbol else R.string.fullscreen_enter_symbol,
         )
         pane.fullscreenButton.contentDescription = getString(
-            if (isSelected) R.string.fullscreen_exit else R.string.fullscreen_enter,
+            if (selected) R.string.fullscreen_exit else R.string.fullscreen_enter,
+        )
+    }
+
+    private fun toggleTheme() {
+        isDarkTheme = !isDarkTheme
+        getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+            .edit()
+            .putBoolean(DARK_THEME_KEY, isDarkTheme)
+            .apply()
+        AppCompatDelegate.setDefaultNightMode(
+            if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES
+            else AppCompatDelegate.MODE_NIGHT_NO,
+        )
+        recreate()
+    }
+
+    private fun updateThemeToggle(button: Button) {
+        button.text = getString(if (isDarkTheme) R.string.theme_light else R.string.theme_dark)
+        button.contentDescription = getString(
+            if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark,
         )
     }
 
@@ -202,6 +268,7 @@ class MainActivity : AppCompatActivity() {
     private fun configureWebView(
         webView: WebView,
         profileName: String,
+        paneIndex: Int,
         addressBar: EditText,
     ) {
         // This must happen before the WebView loads content or is used.
@@ -222,6 +289,11 @@ class MainActivity : AppCompatActivity() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 addressBar.setText(url)
                 addressBar.setSelection(addressBar.text.length)
+                persistPaneUrl(paneIndex, url)
+            }
+
+            override fun onPageFinished(view: WebView, url: String) {
+                persistPaneUrl(paneIndex, url)
             }
 
             override fun shouldOverrideUrlLoading(
@@ -246,6 +318,13 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun persistPaneUrl(index: Int, url: String) {
+        getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+            .edit()
+            .putString(paneUrlKey(index), url)
+            .apply()
     }
 
     private fun loadInput(webView: WebView, addressBar: EditText) {
@@ -281,23 +360,42 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         fullscreenPaneIndex?.let { outState.putInt(FULLSCREEN_PANE_KEY, it) }
         panes.forEachIndexed { index, pane ->
-            // WebView.saveState uses fixed internal keys. A separate Bundle
-            // prevents one pane from overwriting another during recreation.
+            pane.webView.url?.let { url ->
+                outState.putString(webViewUrlKey(index), url)
+                persistPaneUrl(index, url)
+            }
+            // Each WebView receives its own Bundle. This avoids the fixed
+            // internal keys used by WebView.saveState colliding between panes.
             Bundle().also { webViewState ->
                 pane.webView.saveState(webViewState)
                 outState.putBundle(webViewStateKey(index), webViewState)
             }
-            pane.webView.url?.let { url -> outState.putString(webViewUrlKey(index), url) }
         }
         super.onSaveInstanceState(outState)
     }
 
+    override fun onPause() {
+        panes.forEachIndexed { index, pane ->
+            pane.webView.url?.let { persistPaneUrl(index, it) }
+        }
+        super.onPause()
+    }
+
     private fun webViewStateKey(index: Int): String = "$WEBVIEW_STATE_PREFIX$index"
 
+    private fun webViewUrlKey(index: Int): String = "$WEBVIEW_URL_PREFIX$index"
+
+    private fun paneUrlKey(index: Int): String = "$PANE_URL_PREFIX$index"
+
     override fun onDestroy() {
-        panes.forEach { pane ->
-            pane.webView.stopLoading()
-            pane.webView.destroy()
+        // Android keeps the existing WebViews during a handled configuration
+        // change. Destroying them here would force every pane to reload when a
+        // floating window is entered or resized.
+        if (!isChangingConfigurations) {
+            panes.forEach { pane ->
+                pane.webView.stopLoading()
+                pane.webView.destroy()
+            }
         }
         panes.clear()
         super.onDestroy()
