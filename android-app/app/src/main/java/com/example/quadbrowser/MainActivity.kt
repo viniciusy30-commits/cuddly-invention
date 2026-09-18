@@ -147,8 +147,12 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               }
             pane.fullscreenButton.setOnClickListener { toggleFullscreen(index) }
              pane.autoClickButton.setOnClickListener {
-                 if (pane.isAutoClicking) stopAutoClicker(index, true) else beginAutoClickerEditor(index)
-             }
+                if (pane.isAutoClickEditing) {
+                    hideAutoClickerEditor(index, stop = false)
+                } else {
+                    beginAutoClickerEditor(index)
+                }
+            }
             pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
             pane.reopenButton.setOnClickListener { setPaneOpen(index, true) }
             restorePaneState(index, pane.webView, savedInstanceState)
@@ -342,7 +346,7 @@ grid.visibility = View.VISIBLE
         pane.autoClickButton.setBackgroundResource(if (pane.isAutoClicking) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
         pane.autoClickButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
         pane.autoClickButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
-        pane.autoClickButton.visibility = if (pane.isOpen && fullscreenPaneIndex == index) View.VISIBLE else View.GONE
+        pane.autoClickButton.visibility = if (pane.isOpen) View.VISIBLE else View.GONE
         pane.editorPlayPauseButton?.apply {
             text = if (pane.isAutoClicking) "Ⅱ" else "▶"
             contentDescription = getString(if (pane.isAutoClicking) R.string.auto_clicker_pause else R.string.auto_clicker_play)
@@ -367,7 +371,7 @@ grid.visibility = View.VISIBLE
 
       private fun beginAutoClickerEditor(index: Int) {
           val pane = panes.getOrNull(index) ?: return
-          stopAutoClicker(index)
+          if (!pane.isAutoClicking) stopAutoClicker(index)
           pane.isAutoClickEditing = true
           pane.clickLayer.visibility = View.VISIBLE
           pane.clickLayer.isClickable = true
@@ -387,9 +391,12 @@ grid.visibility = View.VISIBLE
     private fun addAutoClickPoint(index: Int, x: Float, y: Float) {
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isAutoClickEditing || pane.isAutoClicking) return
-          val maxX = (pane.clickLayer.width - 1).coerceAtLeast(0).toFloat()
-          val maxY = (pane.clickLayer.height - 1).coerceAtLeast(0).toFloat()
-          pane.autoClickPoints.add(ClickPoint(x.coerceIn(0f, maxX), y.coerceIn(0f, maxY)))
+          val layerWidth = pane.clickLayer.width.coerceAtLeast(1).toFloat()
+          val layerHeight = pane.clickLayer.height.coerceAtLeast(1).toFloat()
+          pane.autoClickPoints.add(ClickPoint(
+              (x / layerWidth).coerceIn(0f, 1f),
+              (y / layerHeight).coerceIn(0f, 1f),
+          ))
           renderAutoClickEditor(index)
       }
 
@@ -467,6 +474,8 @@ grid.visibility = View.VISIBLE
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isAutoClickEditing) return
           val layer = pane.clickLayer
+          val layerWidth = layer.width.coerceAtLeast(1).toFloat()
+          val layerHeight = layer.height.coerceAtLeast(1).toFloat()
           layer.visibility = View.VISIBLE
           layer.removeAllViews()
            val markerSize = dp(28)
@@ -480,8 +489,8 @@ grid.visibility = View.VISIBLE
                    setBackgroundResource(R.drawable.bg_auto_click_marker)
                   elevation = dp(3).toFloat()
                   layoutParams = FrameLayout.LayoutParams(markerSize, markerSize)
-                  x = (point.x - markerSize / 2f).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
-                  y = (point.y - markerSize / 2f).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
+                  x = (point.x.coerceIn(0f, 1f) * layerWidth - markerSize / 2f).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
+                  y = (point.y.coerceIn(0f, 1f) * layerHeight - markerSize / 2f).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
               }
               var startRawX = 0f
               var startRawY = 0f
@@ -520,8 +529,8 @@ grid.visibility = View.VISIBLE
                       MotionEvent.ACTION_UP -> {
                           longPressAction?.let(autoClickHandler::removeCallbacks)
                           if (moved) {
-                              point.x = view.x + markerSize / 2f
-                              point.y = view.y + markerSize / 2f
+                              point.x = ((view.x + markerSize / 2f) / layerWidth).coerceIn(0f, 1f)
+                              point.y = ((view.y + markerSize / 2f) / layerHeight).coerceIn(0f, 1f)
                           } else if (!longPressTriggered && pointIndex in pane.autoClickPoints.indices) {
                               pane.autoClickPoints.removeAt(pointIndex)
                               Toast.makeText(this, R.string.auto_clicker_point_removed, Toast.LENGTH_SHORT).show()
@@ -553,15 +562,6 @@ layer.addView(marker)
               setPadding(dp(3), 0, dp(4), 0)
           }
           header.addView(hint, LinearLayout.LayoutParams(0, dp(34), 1f))
-           val close = ImageButton(this).apply {
-               setImageResource(R.drawable.ic_close)
-              contentDescription = getString(R.string.auto_clicker_close)
-              setBackgroundResource(R.drawable.bg_icon_button)
-               setColorFilter(getColor(R.color.text_primary))
-               setPadding(dp(8), dp(8), dp(8), dp(8))
-              setOnClickListener { hideAutoClickerEditor(index) }
-          }
-          header.addView(close, LinearLayout.LayoutParams(dp(36), dp(34)))
           panel.addView(header, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
           val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
           fun compactAction(label: String, description: Int, click: () -> Unit): TextView = TextView(this).apply {
@@ -639,8 +639,8 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
       private fun dispatchClick(webView: WebView, point: ClickPoint) {
           val maxX = (webView.width - 1).coerceAtLeast(1).toFloat()
           val maxY = (webView.height - 1).coerceAtLeast(1).toFloat()
-          val x = point.x.coerceIn(0f, maxX)
-          val y = point.y.coerceIn(0f, maxY)
+          val x = (point.x.coerceIn(0f, 1f) * maxX).coerceIn(0f, maxX)
+           val y = (point.y.coerceIn(0f, 1f) * maxY).coerceIn(0f, maxY)
           val downTime = SystemClock.uptimeMillis()
           val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0)
           val up = MotionEvent.obtain(downTime, downTime + 40L, MotionEvent.ACTION_UP, x, y, 0)
