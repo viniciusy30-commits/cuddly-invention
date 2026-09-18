@@ -465,14 +465,15 @@ grid.visibility = View.VISIBLE
           val layer = pane.clickLayer
           layer.visibility = View.VISIBLE
           layer.removeAllViews()
-          val markerSize = dp(46)
+           val markerSize = dp(40)
           pane.autoClickPoints.forEachIndexed { pointIndex, point ->
               val marker = TextView(this).apply {
                   text = (pointIndex + 1).toString() + "\n" + formatInterval(point.intervalMs)
                   gravity = Gravity.CENTER
                   setTextColor(getColor(R.color.text_primary))
-                  setTextSize(10f)
-                  setBackgroundResource(R.drawable.bg_theme_button)
+                   setTextSize(9f)
+                   includeFontPadding = false
+                   setBackgroundResource(R.drawable.bg_auto_click_marker)
                   elevation = dp(3).toFloat()
                   layoutParams = FrameLayout.LayoutParams(markerSize, markerSize)
                   x = (point.x - markerSize / 2f).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
