@@ -106,7 +106,18 @@ class MainActivity : AppCompatActivity() {
             panes += pane
             configureWebView(pane.webView, pane.profileName, index)
             pane.navigateButton.setOnClickListener { showNavigationDialog(index) }
-            pane.reloadButton.setOnClickListener { pane.webView.reload() }
+            pane.reloadButton.setOnClickListener {
+                  if (pane.isOpen) {
+                      val currentUrl = pane.webView.url ?: pane.lastUrl
+                      if (!currentUrl.isNullOrBlank() && currentUrl != "about:blank") {
+                          pane.webView.stopLoading()
+                          pane.webView.loadUrl(currentUrl)
+                      } else {
+                          pane.webView.reload()
+                      }
+                      pane.reloadButton.animate().rotationBy(360f).setDuration(450L).start()
+                  }
+              }
             pane.fullscreenButton.setOnClickListener { toggleFullscreen(index) }
             pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
             pane.reopenButton.setOnClickListener { setPaneOpen(index, true) }
@@ -248,8 +259,7 @@ class MainActivity : AppCompatActivity() {
         grid.visibility = View.GONE
         fullscreenOverlay.visibility = View.VISIBLE
         pane.container.visibility = View.VISIBLE
-        findViewById<View>(R.id.fullscreen_exit_overlay).apply { visibility = View.VISIBLE; bringToFront() }
-        panes.forEachIndexed { paneIndex, browserPane -> setFullscreenButtonState(browserPane, paneIndex == index) }
+    panes.forEachIndexed { paneIndex, browserPane -> setFullscreenButtonState(browserPane, paneIndex == index) }
         fullscreenOverlay.requestLayout()
     }
 
