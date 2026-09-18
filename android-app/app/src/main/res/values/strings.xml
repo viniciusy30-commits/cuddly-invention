@@ -28,4 +28,16 @@
     <string name="page_load_error">Não foi possível carregar a página: %1$s</string>
     <string name="renderer_recovered">A instância %1$d foi recuperada. Abra novamente para retomar a página.</string>
     <string name="multi_profile_unavailable">Este dispositivo precisa de uma versão atualizada do Android System WebView para manter os quatro espaços isolados.</string>
-</resources>
+    <string name="open_auto_clicker">Configurar auto clicker</string>
+      <string name="stop_auto_clicker">Parar auto clicker</string>
+      <string name="auto_clicker_title">Auto clicker</string>
+      <string name="auto_clicker_message">Use coordenadas relativas à página. Separe vários pontos com ponto e vírgula, por exemplo: 200,300;500,300.</string>
+      <string name="auto_clicker_multiple">Usar vários pontos em sequência</string>
+      <string name="auto_clicker_interval_hint">Intervalo entre cliques em milissegundos</string>
+      <string name="auto_clicker_points_hint">Ponto(s) x,y</string>
+      <string name="auto_clicker_start">Iniciar</string>
+      <string name="auto_clicker_invalid_interval">Informe um intervalo entre 100 e 600000 ms.</string>
+      <string name="auto_clicker_invalid_points">Informe pelo menos um ponto no formato x,y.</string>
+      <string name="auto_clicker_started">Auto clicker ativo</string>
+      <string name="auto_clicker_stopped">Auto clicker parado</string>
+    </resources>
