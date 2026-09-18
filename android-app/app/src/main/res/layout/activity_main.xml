@@ -74,7 +74,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_1"
                 android:layout_width="match_parent"
-                android:layout_height="72dp"
+                android:layout_height="104dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -203,7 +203,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_2"
                 android:layout_width="match_parent"
-                android:layout_height="72dp"
+                android:layout_height="104dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -332,7 +332,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_3"
                 android:layout_width="match_parent"
-                android:layout_height="72dp"
+                android:layout_height="104dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -461,7 +461,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_4"
                 android:layout_width="match_parent"
-                android:layout_height="72dp"
+                android:layout_height="104dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
