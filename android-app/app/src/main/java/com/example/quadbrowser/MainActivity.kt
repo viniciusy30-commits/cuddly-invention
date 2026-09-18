@@ -1,6 +1,8 @@
 package com.example.quadbrowser
 
+import android.content.res.Configuration
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.util.Patterns
 import android.view.View
@@ -10,6 +12,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.EditText
+import android.widget.GridLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
@@ -23,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val FULLSCREEN_PANE_KEY = "fullscreen_pane_index"
         const val WEBVIEW_STATE_PREFIX = "webview_state_"
+        const val WEBVIEW_URL_PREFIX = "webview_url_"
     }
 
     private data class BrowserPane(
@@ -37,8 +41,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableImmersiveMode()
         setContentView(R.layout.activity_main)
+        applySystemUiMode()
 
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
             showProfileSupportError()
@@ -76,44 +80,108 @@ class MainActivity : AppCompatActivity() {
             savedInstanceState?.getBundle(webViewStateKey(index))?.let { webViewState ->
                 webView.restoreState(webViewState)
             }
+            savedInstanceState?.getString(webViewUrlKey(index))?.let { restoredUrl ->
+                if (addressBar.text.isNullOrBlank()) {
+                    addressBar.setText(restoredUrl)
+                }
+            }
 
             panes += BrowserPane(container, webView, addressBar, fullscreenButton)
             webView.contentDescription = getString(R.string.webview_description, index + 1)
         }
 
         savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let {
-            toggleFullscreen(it)
+            fullscreenPaneIndex = it
         }
+        applyPaneLayout()
     }
 
     private fun toggleFullscreen(index: Int) {
         fullscreenPaneIndex = if (fullscreenPaneIndex == index) null else index
+        applyPaneLayout()
+    }
 
-        val isFullscreen = fullscreenPaneIndex != null
-        panes.forEachIndexed { paneIndex, pane ->
-            val isSelected = paneIndex == fullscreenPaneIndex
-            pane.container.visibility = if (!isFullscreen || isSelected) View.VISIBLE else View.GONE
-            pane.fullscreenButton.text = getString(
-                if (isSelected && isFullscreen) {
-                    R.string.fullscreen_exit_symbol
-                } else {
-                    R.string.fullscreen_enter_symbol
-                },
-            )
-            pane.fullscreenButton.contentDescription = getString(
-                if (isSelected && isFullscreen) {
-                    R.string.fullscreen_exit
-                } else {
-                    R.string.fullscreen_enter
-                },
-            )
+    /**
+     * Keep the existing WebViews alive while Android resizes a freeform or
+     * floating window. Recreating the Activity here can restore the wrong
+     * WebView snapshot into every quadrant.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        window.decorView.post { applyPaneLayout() }
+    }
+
+    override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
+        super.onMultiWindowModeChanged(isInMultiWindowMode, newConfig)
+        applySystemUiMode()
+        window.decorView.post { applyPaneLayout() }
+    }
+
+    private fun applyPaneLayout() {
+        if (panes.isEmpty()) return
+
+        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val selectedIndex = fullscreenPaneIndex
+
+        if (selectedIndex == null) {
+            grid.columnCount = 2
+            grid.rowCount = 2
+            panes.forEachIndexed { index, pane ->
+                pane.container.visibility = View.VISIBLE
+                pane.container.layoutParams = paneLayoutParams(index, fullscreen = false)
+                setFullscreenButtonState(pane, selected = false)
+            }
+        } else {
+            // Hide the other children before changing the grid to one cell so
+            // GridLayout never tries to place stale positions in a 1x1 grid.
+            panes.forEach { pane -> pane.container.visibility = View.GONE }
+            grid.columnCount = 1
+            grid.rowCount = 1
+
+            panes.forEachIndexed { index, pane ->
+                val selected = index == selectedIndex
+                if (selected) {
+                    pane.container.visibility = View.VISIBLE
+                    pane.container.layoutParams = paneLayoutParams(index, fullscreen = true)
+                }
+                setFullscreenButtonState(pane, selected)
+            }
         }
 
-        // Hide the other panes before changing the grid to 1x1. This avoids
-        // asking GridLayout to place four visible children in one cell.
-        findViewById<android.widget.GridLayout>(R.id.browser_grid).apply {
-            columnCount = if (isFullscreen) 1 else 2
-            rowCount = if (isFullscreen) 1 else 2
+        grid.requestLayout()
+    }
+
+    private fun paneLayoutParams(index: Int, fullscreen: Boolean): GridLayout.LayoutParams {
+        val row = if (fullscreen) 0 else index / 2
+        val column = if (fullscreen) 0 else index % 2
+        return GridLayout.LayoutParams(
+            GridLayout.spec(row, 1, 1f),
+            GridLayout.spec(column, 1, 1f),
+        ).apply {
+            width = 0
+            height = 0
+            setMargins(1, 1, 1, 1)
+        }
+    }
+
+    private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
+        val isFullscreen = fullscreenPaneIndex != null
+        val isSelected = isFullscreen && selected
+        pane.fullscreenButton.text = getString(
+            if (isSelected) R.string.fullscreen_exit_symbol else R.string.fullscreen_enter_symbol,
+        )
+        pane.fullscreenButton.contentDescription = getString(
+            if (isSelected) R.string.fullscreen_exit else R.string.fullscreen_enter,
+        )
+    }
+
+    private fun applySystemUiMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInMultiWindowMode) {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
+            WindowInsetsControllerCompat(window, window.decorView)
+                .show(WindowInsetsCompat.Type.systemBars())
+        } else {
+            enableImmersiveMode()
         }
     }
 
@@ -128,9 +196,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            enableImmersiveMode()
-        }
+        if (hasFocus) applySystemUiMode()
     }
 
     private fun configureWebView(
@@ -221,6 +287,7 @@ class MainActivity : AppCompatActivity() {
                 pane.webView.saveState(webViewState)
                 outState.putBundle(webViewStateKey(index), webViewState)
             }
+            pane.webView.url?.let { url -> outState.putString(webViewUrlKey(index), url) }
         }
         super.onSaveInstanceState(outState)
     }
