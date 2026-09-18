@@ -559,16 +559,7 @@
             android:background="@color/pane_background"
             android:elevation="12dp"
             android:visibility="gone" />
-
-        <ImageButton
-            android:id="@+id/fullscreen_exit_overlay"
-            style="@style/FullscreenOverlayExit"
-            android:layout_gravity="top|end"
-            android:contentDescription="@string/fullscreen_exit"
-            android:src="@drawable/ic_close"
-            android:visibility="gone" />
-
-        <TextView
+<TextView
             android:id="@+id/profile_error"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
