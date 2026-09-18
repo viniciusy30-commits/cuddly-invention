@@ -103,13 +103,12 @@
                         <TextView
                             android:id="@+id/pane_title_1"
                             style="@style/PaneTitle"
-                            android:text="@string/ready_to_browse"
-                            android:text="Pronto para navegar" />
+                            android:text="@string/ready_to_browse" />
 
                         <TextView
                             android:id="@+id/pane_subtitle_1"
                             style="@style/PaneSubtitle"
-                            android:text="@string/instance_active_1" />
+                            android:text="Instância 1 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -227,13 +226,12 @@
                         <TextView
                             android:id="@+id/pane_title_2"
                             style="@style/PaneTitle"
-                            android:text="@string/ready_to_browse"
-                            android:text="Pronto para navegar" />
+                            android:text="@string/ready_to_browse" />
 
                         <TextView
                             android:id="@+id/pane_subtitle_2"
                             style="@style/PaneSubtitle"
-                            android:text="@string/instance_active_1" />
+                            android:text="Instância 1 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -351,13 +349,12 @@
                         <TextView
                             android:id="@+id/pane_title_3"
                             style="@style/PaneTitle"
-                            android:text="@string/ready_to_browse"
-                            android:text="Pronto para navegar" />
+                            android:text="@string/ready_to_browse" />
 
                         <TextView
                             android:id="@+id/pane_subtitle_3"
                             style="@style/PaneSubtitle"
-                            android:text="@string/instance_active_1" />
+                            android:text="Instância 1 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
@@ -475,13 +472,12 @@
                         <TextView
                             android:id="@+id/pane_title_4"
                             style="@style/PaneTitle"
-                            android:text="@string/ready_to_browse"
-                            android:text="Pronto para navegar" />
+                            android:text="@string/ready_to_browse" />
 
                         <TextView
                             android:id="@+id/pane_subtitle_4"
                             style="@style/PaneSubtitle"
-                            android:text="@string/instance_active_1" />
+                            android:text="Instância 1 • em execução" />
                     </LinearLayout>
                 </LinearLayout>
 
