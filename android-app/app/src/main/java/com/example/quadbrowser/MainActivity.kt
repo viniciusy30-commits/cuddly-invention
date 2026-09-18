@@ -17,6 +17,7 @@ import android.widget.GridLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.webkit.WebSettingsCompat
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
@@ -54,6 +55,10 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
+        findViewById<Button>(R.id.fullscreen_exit_overlay).setOnClickListener {
+            fullscreenPaneIndex = null
+            applyPaneLayout()
+        }
 
         findViewById<Button>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
@@ -274,7 +279,16 @@ class MainActivity : AppCompatActivity() {
             useWideViewPort = true
         }
 
-        webView.setOnLongClickListener { false }
+        webView.setBackgroundColor(getColor(R.color.pane_background))
+         if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
+             WebSettingsCompat.setForceDark(
+                 webView.settings,
+                 if (isDarkTheme) WebSettingsCompat.FORCE_DARK_ON
+                 else WebSettingsCompat.FORCE_DARK_OFF,
+             )
+         }
+
+         webView.setOnLongClickListener { false }
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 addressBar.setText(url)
