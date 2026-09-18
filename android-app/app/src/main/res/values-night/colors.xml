@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="grid_background">#15191F</color>
+    <color name="pane_background">#0D1117</color>
+    <color name="toolbar_background">#20262E</color>
+    <color name="toolbar_stroke">#3B4652</color>
+    <color name="text_primary">#F1F5F9</color>
+</resources>
