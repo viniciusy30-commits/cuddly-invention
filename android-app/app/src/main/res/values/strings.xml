@@ -65,4 +65,36 @@
     <string name="google_account_picker_description">Escolha a conta Google para esta instância</string>
     <string name="google_account_not_selected">Nenhuma conta Google foi escolhida.</string>
     <string name="google_account_permission_denied">Permissão para acessar as contas Google não concedida.</string>
-        </resources>
+        
+    <string name="account_name_hint">Nome da conta</string>
+    <string name="account_avatar_hint">Avatar curto (emoji ou letras)</string>
+    <string name="edit_instance_identity">Identificação da instância</string>
+    <string name="save_identity">Salvar identificação</string>
+    <string name="account_color_blue">Azul</string>
+    <string name="account_color_red">Vermelho</string>
+    <string name="account_color_green">Verde</string>
+    <string name="account_color_gold">Dourado</string>
+    <string name="account_color_purple">Roxo</string>
+    <string name="instance_page_detail">%1$s • posição %2$d</string>
+    <string name="instance_temporarily_paused">Pausada • posição %1$d</string>
+    <string name="global_reload">Recarregar 4</string>
+    <string name="global_same_address">Mesmo endereço</string>
+    <string name="global_pause">Pausar todas</string>
+    <string name="global_resume">Retomar todas</string>
+    <string name="global_close">Fechar todas</string>
+    <string name="global_auto_click">Auto Click 4</string>
+    <string name="global_reloaded">As quatro instâncias foram recarregadas.</string>
+    <string name="global_same_address_title">Abrir o mesmo endereço</string>
+    <string name="global_same_address_message">O endereço será aberto em todas as instâncias ativas.</string>
+    <string name="global_paused">As quatro instâncias foram pausadas.</string>
+    <string name="global_resumed">As quatro instâncias foram retomadas.</string>
+    <string name="global_closed">As quatro instâncias foram fechadas.</string>
+    <string name="global_auto_click_stopped">Auto Clicker pausado em todas as instâncias.</string>
+    <string name="global_auto_click_need_points">Configure pontos em pelo menos uma instância primeiro.</string>
+    <string name="auto_clicker_presets">Presets</string>
+    <string name="auto_clicker_save_preset">Salvar como preset</string>
+    <string name="auto_clicker_preset_name_hint">Nome do preset</string>
+    <string name="auto_clicker_preset_name_required">Informe um nome para o preset.</string>
+    <string name="auto_clicker_preset_saved">Preset salvo para esta conta.</string>
+    <string name="auto_clicker_preset_applied">Preset aplicado: %1$s</string>
+</resources>
