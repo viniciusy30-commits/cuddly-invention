@@ -96,5 +96,10 @@
     <string name="auto_clicker_preset_name_hint">Nome do preset</string>
     <string name="auto_clicker_preset_name_required">Informe um nome para o preset.</string>
     <string name="auto_clicker_preset_saved">Preset salvo para esta conta.</string>
+    <string name="auto_clicker_delete_preset">Excluir preset</string>
+    <string name="auto_clicker_delete_preset_title">Excluir preset</string>
+    <string name="auto_clicker_delete_preset_message">Deseja apagar o preset "%1$s"?</string>
+    <string name="auto_clicker_no_custom_presets">Nenhum preset personalizado salvo.</string>
+    <string name="auto_clicker_preset_deleted">Preset apagado: %1$s</string>
     <string name="auto_clicker_preset_applied">Preset aplicado: %1$s</string>
 </resources>
