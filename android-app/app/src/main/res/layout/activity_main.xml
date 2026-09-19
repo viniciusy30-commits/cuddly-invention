@@ -85,14 +85,14 @@
                 android:text="@string/global_close" />
 
             <Button
-            <Button
                   android:id="@+id/global_clear_data"
                   style="@style/GlobalActionButton"
                   android:text="@string/global_clear_data" />
 
-                    android:id="@+id/global_auto_click"
-                style="@style/GlobalActionButton"
-                android:text="@string/global_auto_click" />
+              <Button
+                  android:id="@+id/global_auto_click"
+                  style="@style/GlobalActionButton"
+                  android:text="@string/global_auto_click" />
         </LinearLayout>
     </HorizontalScrollView>
 
