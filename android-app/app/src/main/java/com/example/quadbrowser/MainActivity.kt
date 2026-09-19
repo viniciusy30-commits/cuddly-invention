@@ -152,7 +152,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               }
               grid.removeView(container)
               grid.addView(thumbnailHost, index, paneLayoutParams(index))
-              thumbnailHost.addView(container, FrameLayout.LayoutParams(1, 1))
+              thumbnailHost.addView(container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
               val webView = findViewById<WebView>(definition.webViewId)
               val clickLayer = FrameLayout(this).apply {
                   visibility = View.GONE
@@ -179,6 +179,9 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 webViewId = definition.webViewId,
             )
             panes += pane
+            thumbnailHost.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+                refreshGridPaneThumbnails()
+            }
             applyPaneIdentityUi(index)
             configureClickLayer(index)
             configureWebView(pane.webView, pane.profileName, index)
@@ -351,128 +354,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 applyPaneIdentityUi(index)
             }
             .show()
-    }
-
-    private fun bindGlobalControls() {
-        findViewById<Button>(R.id.global_reload).setOnClickListener { reloadAllPanes() }
-        findViewById<Button>(R.id.global_same_address).setOnClickListener { showGlobalAddressDialog() }
-        findViewById<Button>(R.id.global_pause).setOnClickListener { pauseAllPanes() }
-        findViewById<Button>(R.id.global_resume).setOnClickListener { resumeAllPanes() }
-        findViewById<Button>(R.id.global_close).setOnClickListener { closeAllPanes() }
-        findViewById<Button>(R.id.global_clear_data).setOnClickListener { showClearDataDialog() }
-        findViewById<Button>(R.id.global_auto_click).setOnClickListener { toggleAutoClickerAll() }
-    }
-
-    private fun reloadAllPanes() {
-        panes.forEach { pane ->
-            if (!pane.isOpen) return@forEach
-            val url = pane.webView.url ?: pane.lastUrl
-            if (url.isNullOrBlank() || url == "about:blank") pane.webView.reload()
-            else {
-                pane.webView.stopLoading()
-                pane.webView.loadUrl(url)
-            }
-        }
-        Toast.makeText(this, R.string.global_reloaded, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun showGlobalAddressDialog() {
-        val input = EditText(this).apply {
-            setSingleLine(true)
-            hint = getString(R.string.address_hint)
-            setPadding(dp(18), 0, dp(18), 0)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.global_same_address_title)
-            .setMessage(R.string.global_same_address_message)
-            .setView(input)
-            .setNegativeButton(R.string.cancel, null)
-            .setPositiveButton(R.string.go) { _, _ ->
-                    panes.forEachIndexed { index, pane ->
-                        if (!pane.isOpen) setPaneOpen(index, true)
-                        loadInput(pane.webView, input.text.toString())
-                    }
-                }
-            .show()
-    }
-
-    private fun pauseAllPanes() {
-        panes.forEachIndexed { index, pane ->
-            stopAutoClicker(index)
-            if (pane.isOpen && !pane.isPaused) {
-                pane.webView.onPause()
-                pane.isPaused = true
-            }
-            refreshPaneHeader(index)
-        }
-        persistAllPaneState()
-        Toast.makeText(this, R.string.global_paused, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun resumeAllPanes() {
-        panes.forEachIndexed { index, pane ->
-            if (!pane.isOpen) setPaneOpen(index, true)
-            if (pane.isPaused) {
-                pane.webView.onResume()
-                pane.isPaused = false
-            }
-            refreshPaneHeader(index)
-        }
-        persistAllPaneState()
-        Toast.makeText(this, R.string.global_resumed, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun closeAllPanes() {
-        panes.indices.forEach { setPaneOpen(it, false) }
-        Toast.makeText(this, R.string.global_closed, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun showClearDataDialog() {
-          AlertDialog.Builder(this)
-              .setTitle(R.string.clear_data_title)
-              .setMessage(R.string.clear_data_message)
-              .setNegativeButton(R.string.cancel, null)
-              .setPositiveButton(R.string.clear_data_confirm) { _, _ -> clearAllInstanceData() }
-              .show()
-      }
-
-      private fun clearAllInstanceData() {
-          panes.forEach { pane ->
-              pane.webView.stopLoading()
-              pane.webView.clearHistory()
-              pane.webView.clearCache(true)
-              pane.webView.clearFormData()
-              pane.webView.clearSslPreferences()
-          }
-          WebStorage.getInstance().deleteAllData()
-          CookieManager.getInstance().removeAllCookies {
-              CookieManager.getInstance().flush()
-              runOnUiThread {
-                  panes.forEach { pane ->
-                      val url = pane.webView.url ?: pane.lastUrl
-                      if (pane.isOpen && !url.isNullOrBlank() && url != "about:blank") {
-                          pane.webView.loadUrl(url)
-                      }
-                  }
-                  Toast.makeText(this, R.string.clear_data_done, Toast.LENGTH_SHORT).show()
-              }
-          }
-      }
-
-        private fun toggleAutoClickerAll() {
-        if (panes.any { it.isAutoClicking }) {
-            panes.indices.forEach { stopAutoClicker(it, notify = false) }
-            Toast.makeText(this, R.string.global_auto_click_stopped, Toast.LENGTH_SHORT).show()
-            return
-        }
-        var started = 0
-        panes.forEachIndexed { index, pane ->
-            if (pane.isOpen && pane.autoClickPoints.isNotEmpty()) {
-                startAutoClicker(index)
-                started++
-            }
-        }
-        if (started == 0) Toast.makeText(this, R.string.global_auto_click_need_points, Toast.LENGTH_SHORT).show()
     }
 
     private fun configurePaneReordering(index: Int) {
@@ -786,25 +667,33 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-          panes.forEach { pane ->
-              if (pane.container.parent !== pane.thumbnailHost) return@forEach
-              val hostWidth = pane.thumbnailHost.width
-              val hostHeight = pane.thumbnailHost.height
-              if (hostWidth <= 0 || hostHeight <= 0) return@forEach
+        panes.forEach { pane ->
+            if (pane.container.parent !== pane.thumbnailHost) return@forEach
+            val hostWidth = pane.thumbnailHost.width
+            val hostHeight = pane.thumbnailHost.height
+            if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-              // Render each WebView at its actual cell size. Scaling a full-screen
-              // WebView into a small host caused the lower game panes to be clipped.
-              pane.container.layoutParams = FrameLayout.LayoutParams(hostWidth, hostHeight)
-              pane.container.pivotX = 0f
-              pane.container.pivotY = 0f
-              pane.container.scaleX = 1f
-              pane.container.scaleY = 1f
-              pane.container.translationX = 0f
-              pane.container.translationY = 0f
-          }
-      }
+            // Keep every pane exactly as large as its measured grid cell. This
+            // avoids the lower row retaining a stale or undersized WebView.
+            val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
+            if (currentParams?.width != ViewGroup.LayoutParams.MATCH_PARENT ||
+                currentParams.height != ViewGroup.LayoutParams.MATCH_PARENT
+            ) {
+                pane.container.layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
+            }
+            pane.container.pivotX = 0f
+            pane.container.pivotY = 0f
+            pane.container.scaleX = 1f
+            pane.container.scaleY = 1f
+            pane.container.translationX = 0f
+            pane.container.translationY = 0f
+        }
+    }
 
-        private fun refreshAutoClickEditors() {
+    private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
