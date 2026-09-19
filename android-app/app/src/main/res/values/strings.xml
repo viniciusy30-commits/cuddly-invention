@@ -97,28 +97,4 @@
     <string name="auto_clicker_preset_name_required">Informe um nome para o preset.</string>
     <string name="auto_clicker_preset_saved">Preset salvo para esta conta.</string>
     <string name="auto_clicker_preset_applied">Preset aplicado: %1$s</string>
-    <string name="instance_active_named">%1$s • em execução</string>
-      <string name="global_controls">Controles</string>
-      <string name="reload_all">Recarregar as 4 instâncias</string>
-      <string name="open_all">Abrir endereço nas 4 contas</string>
-      <string name="pause_all">Pausar todas</string>
-      <string name="resume_all">Retomar todas</string>
-      <string name="close_all">Fechar todas</string>
-      <string name="auto_click_all_on">Ativar Auto Clicker em todas</string>
-      <string name="auto_click_all_off">Desativar Auto Clicker em todas</string>
-      <string name="configure_account">Configurar %1$s</string>
-      <string name="account_name_hint">Nome da conta</string>
-      <string name="avatar_hint">Avatar ou iniciais</string>
-      <string name="account_color">Cor da instância</string>
-      <string name="choose_color">Escolher esta cor</string>
-      <string name="save">Salvar</string>
-      <string name="profile_saved">Identificação da conta salva</string>
-      <string name="auto_clicker">Auto Clicker</string>
-      <string name="auto_click_start">Iniciar cliques</string>
-      <string name="auto_click_stop">Parar cliques</string>
-      <string name="auto_click_x_hint">Coordenada X (vazio = centro)</string>
-      <string name="auto_click_y_hint">Coordenada Y (vazio = centro)</string>
-      <string name="auto_click_count_hint">Quantidade (1 = único, 0 = contínuo)</string>
-      <string name="auto_click_interval_hint">Intervalo entre cliques em ms</string>
-      <string name="auto_click_help">Os cliques funcionam dentro da página desta instância. Use coordenadas relativas à área da página.</string>
-    </resources>
+</resources>

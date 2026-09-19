@@ -7,8 +7,6 @@ import android.graphics.drawable.GradientDrawable
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -16,14 +14,11 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import android.util.Patterns
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.Gravity
 import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -36,7 +31,6 @@ import android.widget.EditText
 import android.widget.FrameLayout
 import android.widget.GridLayout
 import android.widget.ImageButton
-import android.widget.LinearLayout
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
@@ -68,9 +62,6 @@ class MainActivity : AppCompatActivity() {
         const val AUTO_PRESET_PREFIX = "auto_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
-        val DEFAULT_NAMES = listOf("Conta principal", "Conta secundária", "Conta de trocas", "Conta de farm")
-        val DEFAULT_AVATARS = listOf("01", "02", "03", "04")
-        val DEFAULT_COLORS = listOf("#6875F5", "#2DB7A3", "#F29B4B", "#D96BC2")
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
         const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
@@ -119,7 +110,6 @@ class MainActivity : AppCompatActivity() {
     private val paneColorOptions = listOf("#5869DD", "#D94F66", "#00A896", "#F0A202", "#7B61FF")
     private var pendingGoogleAccountRequest: Pair<Int, String>? = null
     private var isDarkTheme = false
-    private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isActivityVisible = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
 
@@ -616,7 +606,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     private fun setPaneOpen(index: Int, open: Boolean) {
         val pane = panes.getOrNull(index) ?: return
         pane.isOpen = open
-        if (!open) stopAutoClick(index)
         if (!open && fullscreenPaneIndex == index) fullscreenPaneIndex = null
         if (open) {
             val urlToResume = pane.pendingUrl ?: pane.lastUrl
@@ -639,8 +628,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         pane.navigateButton.visibility = if (open) View.VISIBLE else View.GONE
         pane.reloadButton.visibility = if (open) View.VISIBLE else View.GONE
         pane.fullscreenButton.visibility = if (open) View.VISIBLE else View.GONE
-        pane.closeButton.visibility = if (open && fullscreenPaneIndex != index) View.VISIBLE else View.GONE
-        pane.autoClickButton.visibility = if (open && fullscreenPaneIndex == index) View.VISIBLE else View.GONE
+        pane.closeButton.visibility = if (open) View.VISIBLE else View.GONE
         refreshPaneHeader(index)
     }
 
@@ -794,9 +782,6 @@ grid.visibility = View.VISIBLE
         pane.fullscreenButton.setBackgroundResource(R.drawable.bg_icon_button)
         pane.fullscreenButton.setColorFilter(getColor(R.color.text_primary))
         pane.fullscreenButton.contentDescription = getString(if (selected) R.string.fullscreen_exit else R.string.fullscreen_enter)
-        pane.closeButton.visibility = if (pane.isOpen && !selected) View.VISIBLE else View.GONE
-        pane.autoClickButton.visibility = if (pane.isOpen && selected) View.VISIBLE else View.GONE
-        pane.autoClickButton.setImageResource(if (pane.autoClickRunning) R.drawable.ic_stop else R.drawable.ic_touch)
     }
 
 
@@ -1236,206 +1221,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
           up.recycle()
       }
 
-        private fun applyPaneProfile(index: Int, pane: BrowserPane) {
-          val prefs = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
-          pane.displayName = prefs.getString("pane_name_" + index, DEFAULT_NAMES[index]) ?: DEFAULT_NAMES[index]
-          pane.avatarText = (prefs.getString("pane_avatar_" + index, DEFAULT_AVATARS[index]) ?: DEFAULT_AVATARS[index]).take(3)
-          val colorValue = prefs.getString("pane_color_" + index, DEFAULT_COLORS[index]) ?: DEFAULT_COLORS[index]
-          pane.accentColor = runCatching { Color.parseColor(colorValue) }.getOrDefault(Color.parseColor(DEFAULT_COLORS[index]))
-          pane.avatarView.text = pane.avatarText
-          pane.avatarView.background = GradientDrawable().apply {
-              shape = GradientDrawable.OVAL
-              setColor(pane.accentColor)
-          }
-          pane.toolbarView.background = GradientDrawable().apply {
-              setColor(Color.argb(42, Color.red(pane.accentColor), Color.green(pane.accentColor), Color.blue(pane.accentColor)))
-          }
-      }
-
-      private fun showPaneSettingsDialog(index: Int) {
-          val pane = panes.getOrNull(index) ?: return
-          val content = LinearLayout(this).apply {
-              orientation = LinearLayout.VERTICAL
-              setPadding(24, 4, 24, 0)
-          }
-          val nameInput = EditText(this).apply {
-              hint = getString(R.string.account_name_hint)
-              setSingleLine(true)
-              setText(pane.displayName)
-          }
-          val avatarInput = EditText(this).apply {
-              hint = getString(R.string.avatar_hint)
-              setSingleLine(true)
-              setText(pane.avatarText)
-          }
-          content.addView(nameInput, LinearLayout.LayoutParams(-1, 52))
-          content.addView(avatarInput, LinearLayout.LayoutParams(-1, 52))
-          val colorLabel = TextView(this).apply {
-              text = getString(R.string.account_color)
-              setTextColor(getColor(R.color.text_primary))
-              setPadding(0, 14, 0, 8)
-          }
-          content.addView(colorLabel)
-          val colorRow = LinearLayout(this).apply {
-              orientation = LinearLayout.HORIZONTAL
-              gravity = Gravity.CENTER_VERTICAL
-          }
-          var selectedColor = pane.accentColor
-          val colorOptions = DEFAULT_COLORS.map { Color.parseColor(it) }
-          colorOptions.forEach { color ->
-              val swatch = TextView(this).apply {
-                  layoutParams = LinearLayout.LayoutParams(42, 42).apply { setMargins(0, 0, 10, 0) }
-                  background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(color) }
-                  contentDescription = getString(R.string.choose_color)
-                  setOnClickListener { selectedColor = color }
-              }
-              colorRow.addView(swatch)
-          }
-          content.addView(colorRow)
-          AlertDialog.Builder(this)
-              .setTitle(getString(R.string.configure_account, pane.displayName))
-              .setView(content)
-              .setNegativeButton(R.string.cancel, null)
-              .setPositiveButton(R.string.save) { _, _ ->
-                  pane.displayName = nameInput.text.toString().trim().ifBlank { DEFAULT_NAMES[index] }
-                  pane.avatarText = avatarInput.text.toString().trim().ifBlank { DEFAULT_AVATARS[index] }.take(3)
-                  pane.accentColor = selectedColor
-                  getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit()
-                      .putString("pane_name_" + index, pane.displayName)
-                      .putString("pane_avatar_" + index, pane.avatarText)
-                      .putString("pane_color_" + index, String.format("#%06X", 0xFFFFFF and pane.accentColor))
-                      .apply()
-                  applyPaneProfile(index, pane)
-                  pane.avatarView.contentDescription = getString(R.string.configure_account, pane.displayName)
-                  updatePaneIdentity(index, pane.webView.url, pane.lastTitle)
-                  Toast.makeText(this, R.string.profile_saved, Toast.LENGTH_SHORT).show()
-              }
-              .show()
-      }
-
-      private fun showGlobalControlsDialog() {
-          val content = LinearLayout(this).apply {
-              orientation = LinearLayout.VERTICAL
-              setPadding(24, 4, 24, 0)
-          }
-          lateinit var dialog: AlertDialog
-          fun action(label: Int, callback: () -> Unit) {
-              val button = Button(this).apply {
-                  text = getString(label)
-                  isAllCaps = false
-                  setOnClickListener { callback(); dialog.dismiss() }
-              }
-              content.addView(button, LinearLayout.LayoutParams(-1, 52).apply { setMargins(0, 4, 0, 4) })
-          }
-          action(R.string.reload_all) { panes.indices.forEach { index -> if (panes[index].isOpen) reloadPane(index) } }
-          action(R.string.open_all) { dialog.dismiss(); showGlobalNavigationDialog() }
-          action(R.string.pause_all) { panes.indices.forEach { setPaneOpen(it, false) } }
-          action(R.string.resume_all) { panes.indices.forEach { setPaneOpen(it, true) } }
-          action(R.string.close_all) { panes.forEach { it.webView.stopLoading() }; panes.indices.forEach { setPaneOpen(it, false) } }
-          action(if (panes.any { it.autoClickRunning }) R.string.auto_click_all_off else R.string.auto_click_all_on) { toggleAutoClickAll() }
-          dialog = AlertDialog.Builder(this).setTitle(R.string.global_controls).setView(content).setNegativeButton(R.string.cancel, null).create()
-          dialog.show()
-      }
-
-      private fun showGlobalNavigationDialog() {
-          val input = EditText(this).apply {
-              hint = getString(R.string.address_hint)
-              setSingleLine(true)
-              setPadding(24, 0, 24, 0)
-          }
-          AlertDialog.Builder(this)
-              .setTitle(R.string.open_all)
-              .setView(input)
-              .setNegativeButton(R.string.cancel, null)
-              .setPositiveButton(R.string.go) { _, _ -> panes.forEach { if (it.isOpen) loadInput(it.webView, input.text.toString()) } }
-              .show()
-      }
-
-      private fun reloadPane(index: Int) {
-          val pane = panes.getOrNull(index) ?: return
-          val currentUrl = pane.webView.url ?: pane.lastUrl
-          if (!currentUrl.isNullOrBlank() && currentUrl != "about:blank") {
-              pane.webView.stopLoading()
-              pane.webView.loadUrl(currentUrl)
-          } else {
-              pane.webView.reload()
-          }
-          pane.reloadButton.animate().rotationBy(360f).setDuration(450L).start()
-      }
-
-      private fun toggleAutoClickAll() {
-          if (panes.any { it.autoClickRunning }) {
-              panes.indices.forEach { stopAutoClick(it) }
-              Toast.makeText(this, R.string.auto_click_all_off, Toast.LENGTH_SHORT).show()
-          } else {
-              showAutoClickDialog(panes.indices.toList(), getString(R.string.auto_click_all_on))
-          }
-      }
-
-      private fun showAutoClickDialog(targetIndexes: List<Int>, title: String) {
-          val content = LinearLayout(this).apply {
-              orientation = LinearLayout.VERTICAL
-              setPadding(24, 4, 24, 0)
-          }
-          val xInput = EditText(this).apply { hint = getString(R.string.auto_click_x_hint); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setSingleLine(true) }
-          val yInput = EditText(this).apply { hint = getString(R.string.auto_click_y_hint); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setSingleLine(true) }
-          val countInput = EditText(this).apply { hint = getString(R.string.auto_click_count_hint); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setSingleLine(true); setText("1") }
-          val intervalInput = EditText(this).apply { hint = getString(R.string.auto_click_interval_hint); inputType = android.text.InputType.TYPE_CLASS_NUMBER; setSingleLine(true); setText("1000") }
-          content.addView(xInput, LinearLayout.LayoutParams(-1, 52))
-          content.addView(yInput, LinearLayout.LayoutParams(-1, 52))
-          content.addView(countInput, LinearLayout.LayoutParams(-1, 52))
-          content.addView(intervalInput, LinearLayout.LayoutParams(-1, 52))
-          AlertDialog.Builder(this)
-              .setTitle(title)
-              .setMessage(R.string.auto_click_help)
-              .setView(content)
-              .setNegativeButton(R.string.cancel, null)
-              .setPositiveButton(R.string.auto_click_start) { _, _ ->
-                  val x = xInput.text.toString().toIntOrNull()
-                  val y = yInput.text.toString().toIntOrNull()
-                  val count = (countInput.text.toString().toIntOrNull() ?: 1).coerceAtLeast(0)
-                  val interval = (intervalInput.text.toString().toLongOrNull() ?: 1000L).coerceAtLeast(100L)
-                  startAutoClick(targetIndexes, x, y, count, interval)
-              }
-              .show()
-      }
-
-      private fun startAutoClick(targetIndexes: List<Int>, x: Int?, y: Int?, count: Int, interval: Long) {
-          targetIndexes.forEach { index ->
-              val pane = panes.getOrNull(index) ?: return@forEach
-              if (!pane.isOpen) return@forEach
-              stopAutoClick(index)
-              var remaining = count
-              val runnable = object : Runnable {
-                  override fun run() {
-                      if (!pane.autoClickRunning || !pane.isOpen) return
-                      val clickX = x ?: -1
-                      val clickY = y ?: -1
-                      val script = "(function(x,y){var px=x<0?Math.round(innerWidth/2):x;var py=y<0?Math.round(innerHeight/2):y;var el=document.elementFromPoint(px,py);if(!el)return;['pointerdown','mousedown','pointerup','mouseup','click'].forEach(function(t){el.dispatchEvent(new MouseEvent(t,{bubbles:true,cancelable:true,clientX:px,clientY:py,view:window}))});if(el.click)el.click();})(" + clickX + "," + clickY + ");"
-                      pane.webView.evaluateJavascript(script, null)
-                      if (count > 0) {
-                          remaining -= 1
-                          if (remaining <= 0) { stopAutoClick(index); return }
-                      }
-                      autoClickHandler.postDelayed(this, interval)
-                  }
-              }
-              pane.autoClickRunning = true
-              pane.autoClickRunnable = runnable
-              pane.autoClickButton.setImageResource(R.drawable.ic_stop)
-              setFullscreenButtonState(pane, fullscreenPaneIndex == index)
-              autoClickHandler.post(runnable)
-          }
-      }
-
-      private fun stopAutoClick(index: Int) {
-          val pane = panes.getOrNull(index) ?: return
-          pane.autoClickRunnable?.let { autoClickHandler.removeCallbacks(it) }
-          pane.autoClickRunnable = null
-          pane.autoClickRunning = false
-          if (::fullscreenOverlay.isInitialized) setFullscreenButtonState(pane, fullscreenPaneIndex == index)
-      }
-
         private fun toggleTheme() {
         isDarkTheme = !isDarkTheme
         getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(DARK_THEME_KEY, isDarkTheme).apply()
@@ -1505,7 +1290,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         if (!pageTitle.isNullOrBlank()) pane.lastTitle = pageTitle
         if (!pane.isOpen) return
         pane.titleView.text = pane.lastTitle?.takeIf { it.isNotBlank() } ?: if (pane.lastUrl.isNullOrBlank()) getString(R.string.ready_to_browse) else getString(R.string.page_ready)
-        pane.subtitleView.text = getString(R.string.instance_active_named, pane.displayName)
+        pane.subtitleView.text = getString(R.string.instance_active, index + 1)
     }
 
     private fun persistPaneUrl(index: Int, url: String) {
@@ -1616,7 +1401,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
 
     override fun onDestroy() {
         persistAllPaneState()
-        panes.indices.forEach { stopAutoClick(it) }
         if (!isChangingConfigurations) panes.forEach { it.webView.stopLoading(); it.webView.destroy() }
         panes.clear()
         super.onDestroy()
