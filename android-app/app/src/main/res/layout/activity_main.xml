@@ -42,6 +42,55 @@
             android:src="@drawable/ic_moon" />
     </LinearLayout>
 
+    <HorizontalScrollView
+        android:id="@+id/global_controls_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:background="@color/toolbar_background"
+        android:fillViewport="true"
+        android:horizontalScrollBarEnabled="false"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp">
+
+        <LinearLayout
+            android:id="@+id/global_controls"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/global_reload"
+                style="@style/GlobalActionButton"
+                android:text="@string/global_reload" />
+
+            <Button
+                android:id="@+id/global_same_address"
+                style="@style/GlobalActionButton"
+                android:text="@string/global_same_address" />
+
+            <Button
+                android:id="@+id/global_pause"
+                style="@style/GlobalActionButton"
+                android:text="@string/global_pause" />
+
+            <Button
+                android:id="@+id/global_resume"
+                style="@style/GlobalActionButton"
+                android:text="@string/global_resume" />
+
+            <Button
+                android:id="@+id/global_close"
+                style="@style/GlobalActionButton"
+                android:text="@string/global_close" />
+
+            <Button
+                android:id="@+id/global_auto_click"
+                style="@style/GlobalActionButton"
+                android:text="@string/global_auto_click" />
+        </LinearLayout>
+    </HorizontalScrollView>
+
     <FrameLayout
         android:id="@+id/browser_content"
         android:layout_width="match_parent"
@@ -91,6 +140,7 @@
 
                     <TextView
                         style="@style/PaneBadge"
+                        android:id="@+id/avatar_1"
                         android:text="01" />
 
                     <LinearLayout
@@ -220,6 +270,7 @@
 
                     <TextView
                         style="@style/PaneBadge"
+                        android:id="@+id/avatar_2"
                         android:text="02" />
 
                     <LinearLayout
@@ -349,6 +400,7 @@
 
                     <TextView
                         style="@style/PaneBadge"
+                        android:id="@+id/avatar_3"
                         android:text="03" />
 
                     <LinearLayout
@@ -478,6 +530,7 @@
 
                     <TextView
                         style="@style/PaneBadge"
+                        android:id="@+id/avatar_4"
                         android:text="04" />
 
                     <LinearLayout
