@@ -821,7 +821,12 @@ grid.visibility = View.VISIBLE
 
     private fun paneLayoutParams(index: Int): GridLayout.LayoutParams = GridLayout.LayoutParams(
         GridLayout.spec(index / 2, 1, 1f), GridLayout.spec(index % 2, 1, 1f),
-    ).apply { width = 0; height = 0; setMargins(7, 7, 7, 7) }
+    ).apply {
+          width = 0
+          height = 0
+          gravity = Gravity.FILL
+          setMargins(7, 7, 7, 7)
+      }
 
     private fun setFullscreenButtonState(pane: BrowserPane, selected: Boolean) {
         pane.fullscreenButton.setImageResource(R.drawable.ic_expand)
