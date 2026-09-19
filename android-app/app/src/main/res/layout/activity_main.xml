@@ -48,7 +48,7 @@
         android:layout_height="52dp"
         android:background="@color/toolbar_background"
         android:fillViewport="true"
-        android:horizontalScrollBarEnabled="false"
+        android:scrollbars="none"
         android:paddingStart="8dp"
         android:paddingEnd="8dp">
 
