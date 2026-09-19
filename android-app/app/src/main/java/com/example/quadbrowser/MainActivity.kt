@@ -1,5 +1,6 @@
 package com.example.quadbrowser
 
+import android.content.Intent
 import android.content.res.Configuration
 import android.os.Handler
 import android.os.Looper
