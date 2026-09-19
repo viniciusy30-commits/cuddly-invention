@@ -670,38 +670,46 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-          panes.forEach { pane ->
-              if (pane.container.parent !== pane.thumbnailHost) return@forEach
+        val browserContent = findViewById<View>(R.id.browser_content)
+        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
+        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
 
-              val hostWidth = pane.thumbnailHost.width
-              val hostHeight = pane.thumbnailHost.height
-              if (hostWidth <= 0 || hostHeight <= 0) return@forEach
+        // The child is intentionally laid out at the full browser viewport so
+        // responsive pages and canvas/WebGL apps render the same screen as in
+        // fullscreen. Only the final drawing is scaled into each grid cell.
+        grid.clipChildren = false
+        grid.clipToPadding = false
+        panes.forEach { pane ->
+            if (pane.container.parent !== pane.thumbnailHost) return@forEach
 
-              // Let each WebView use the real size of its grid cell. Scaling a
-              // full-screen WebView into a small host makes canvas/WebGL pages
-              // calculate the wrong viewport and clips the lower row.
-              val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
-              if (currentParams?.width != ViewGroup.LayoutParams.MATCH_PARENT ||
-                  currentParams.height != ViewGroup.LayoutParams.MATCH_PARENT
-              ) {
-                  pane.container.layoutParams = FrameLayout.LayoutParams(
-                      ViewGroup.LayoutParams.MATCH_PARENT,
-                      ViewGroup.LayoutParams.MATCH_PARENT,
-                  )
-              }
-              pane.container.pivotX = 0f
-              pane.container.pivotY = 0f
-              pane.container.scaleX = 1f
-              pane.container.scaleY = 1f
-              pane.container.translationX = 0f
-              pane.container.translationY = 0f
+            val hostWidth = pane.thumbnailHost.width
+            val hostHeight = pane.thumbnailHost.height
+            if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-              pane.webView.post {
-                  pane.webView.requestLayout()
-                  pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-              }
-          }
-      }
+            pane.thumbnailHost.clipChildren = false
+            pane.thumbnailHost.clipToPadding = false
+            val scale = minOf(
+                hostWidth.toFloat() / targetWidth,
+                hostHeight.toFloat() / targetHeight,
+            )
+            val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
+            if (currentParams?.width != targetWidth || currentParams.height != targetHeight) {
+                pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
+            }
+            pane.container.pivotX = 0f
+            pane.container.pivotY = 0f
+            pane.container.scaleX = scale
+            pane.container.scaleY = scale
+            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
+            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
+
+            pane.webView.post {
+                pane.webView.requestLayout()
+                pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+            }
+        }
+    }
 
         private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
