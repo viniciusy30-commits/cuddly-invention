@@ -74,7 +74,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_1"
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
+                android:layout_height="96dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -116,7 +116,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="40dp"
                     android:gravity="end|center_vertical"
                     android:orientation="horizontal">
 
@@ -205,7 +205,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_2"
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
+                android:layout_height="96dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -247,7 +247,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="40dp"
                     android:gravity="end|center_vertical"
                     android:orientation="horizontal">
 
@@ -336,7 +336,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_3"
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
+                android:layout_height="96dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -378,7 +378,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="40dp"
                     android:gravity="end|center_vertical"
                     android:orientation="horizontal">
 
@@ -467,7 +467,7 @@
             <LinearLayout
                 android:id="@+id/pane_toolbar_4"
                 android:layout_width="match_parent"
-                android:layout_height="124dp"
+                android:layout_height="96dp"
                 android:background="@drawable/bg_pane_toolbar"
                 android:orientation="vertical"
                 android:paddingStart="9dp"
@@ -509,7 +509,7 @@
 
                 <LinearLayout
                     android:layout_width="match_parent"
-                    android:layout_height="48dp"
+                    android:layout_height="40dp"
                     android:gravity="end|center_vertical"
                     android:orientation="horizontal">
 
