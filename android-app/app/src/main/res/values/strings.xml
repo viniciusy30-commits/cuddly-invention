@@ -54,4 +54,8 @@
       <string name="auto_clicker_need_point">Adicione pelo menos um ponto primeiro.</string>
       <string name="auto_clicker_started">Sequência do auto clicker ativa</string>
       <string name="auto_clicker_stopped">Sequência pausada</string>
+    <string name="auto_clicker_background_channel">Auto Click em segundo plano</string>
+    <string name="auto_clicker_background_channel_description">Mantém o Auto Click ativo enquanto o Quad Browser está minimizado.</string>
+    <string name="auto_clicker_background_title">Auto Click ativo</string>
+    <string name="auto_clicker_background_message">O Quad Browser continua funcionando em segundo plano.</string>
         </resources>

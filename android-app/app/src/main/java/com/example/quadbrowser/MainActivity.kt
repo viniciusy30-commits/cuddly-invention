@@ -30,6 +30,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.ContextCompat
 import androidx.webkit.WebSettingsCompat
 import kotlin.math.abs
 import kotlin.math.roundToLong
@@ -661,6 +662,7 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
           pane.isAutoClicking = true
           pane.isAutoClickEditing = true
           pane.clickLayer.visibility = View.VISIBLE
+           startAutoClickBackgroundService()
           val runnable = object : Runnable {
               override fun run() {
                   val currentPane = panes.getOrNull(index)
@@ -691,8 +693,20 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
           pane.autoClickIndex = 0
           pane.isAutoClicking = false
           setPaneActionState(index)
+           stopAutoClickBackgroundServiceIfIdle()
           if (notify) Toast.makeText(this, R.string.auto_clicker_stopped, Toast.LENGTH_SHORT).show()
       }
+
+       private fun startAutoClickBackgroundService() {
+           val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
+               .setAction(AutoClickForegroundService.ACTION_START)
+           ContextCompat.startForegroundService(this, serviceIntent)
+       }
+
+       private fun stopAutoClickBackgroundServiceIfIdle() {
+           if (panes.any { it.isAutoClicking }) return
+           stopService(Intent(this, AutoClickForegroundService::class.java))
+       }
 
       private fun dispatchClick(webView: WebView, point: ClickPoint) {
           val maxX = (webView.width - 1).coerceAtLeast(1).toFloat()
@@ -822,7 +836,6 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
     }
 
     override fun onPause() {
-        panes.indices.forEach { stopAutoClicker(it) }
         persistAllPaneState()
         super.onPause()
     }
@@ -834,7 +847,6 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
     private fun paneOpenKey(index: Int): String = PANE_OPEN_PREFIX + index
 
     override fun onDestroy() {
-        panes.indices.forEach { stopAutoClicker(it) }
         persistAllPaneState()
         if (!isChangingConfigurations) panes.forEach { it.webView.stopLoading(); it.webView.destroy() }
         panes.clear()
