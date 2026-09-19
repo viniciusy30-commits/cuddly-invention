@@ -126,6 +126,9 @@ class MainActivity : AppCompatActivity() {
         requestNotificationPermissionIfNeeded()
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
+        findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            refreshGridPaneThumbnails()
+        }
 findViewById<ImageButton>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
             setOnClickListener { toggleTheme() }
@@ -671,19 +674,23 @@ grid.visibility = View.VISIBLE
         val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
         val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
 
-        panes.forEach { pane ->
-            if (pane.container.parent !== pane.thumbnailHost) return@forEach
+        val minimizedPanes = panes.filter { it.container.parent === it.thumbnailHost }
+        minimizedPanes.forEach { pane ->
             val hostWidth = pane.thumbnailHost.width
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-            // Keep the WebView at the full browser-content size and scale it into
-            // the small cell so every minimized instance shows the complete page.
+            // Render the full browser viewport and scale it into the cell. This
+            // keeps the top and bottom rows visually identical and avoids pages
+            // being laid out once at a tiny WebView size.
             val scale = minOf(
                 hostWidth.toFloat() / targetWidth,
                 hostHeight.toFloat() / targetHeight,
             )
-            pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
+            val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
+            if (currentParams?.width != targetWidth || currentParams.height != targetHeight) {
+                pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
+            }
             pane.container.pivotX = 0f
             pane.container.pivotY = 0f
             pane.container.scaleX = scale
@@ -691,6 +698,21 @@ grid.visibility = View.VISIBLE
             pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
             pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
         }
+
+        if (minimizedPanes.isNotEmpty() &&
+            minimizedPanes.all { it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 } &&
+            browserContent.width > 1 && browserContent.height > 1
+        ) {
+            minimizedPanes.forEach { pane ->
+                pane.webView.post {
+                    pane.webView.requestLayout()
+                    pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                }
+            }
+        }
+    }
+
+
     }
 
     private fun refreshAutoClickEditors() {
@@ -1267,6 +1289,10 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                     ?.takeUnless { it == "picker_cancelled" }
                     ?.takeIf { isGoogleSignInUrl(url) }
                     ?.let { prefillGoogleAccount(view, it) }
+                view.post {
+                    view.requestLayout()
+                    view.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
