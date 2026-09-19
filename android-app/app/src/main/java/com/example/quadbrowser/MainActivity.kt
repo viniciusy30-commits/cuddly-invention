@@ -24,6 +24,7 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.webkit.CookieManager
 import android.text.InputType
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -1304,9 +1305,16 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
 
     private fun configureWebView(webView: WebView, profileName: String, paneIndex: Int) {
         WebViewCompat.setProfile(webView, profileName)
+        CookieManager.getInstance().apply {
+            setAcceptCookie(true)
+            setAcceptThirdPartyCookies(webView, true)
+        }
         with(webView.settings) {
             javaScriptEnabled = true
+            javaScriptCanOpenWindowsAutomatically = true
             domStorageEnabled = true
+            databaseEnabled = true
+            setSupportMultipleWindows(true)
             builtInZoomControls = true
             displayZoomControls = false
             setSupportZoom(true)
