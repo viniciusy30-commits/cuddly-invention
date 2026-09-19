@@ -106,6 +106,12 @@ class MainActivity : AppCompatActivity() {
         var selectedGoogleAccount: String? = null,
         var editorPlayPauseButton: TextView? = null,
         var gridScalePercent: Int? = null,
+        var gridTransformApplied: Boolean = false,
+        var gridReferenceWidth: Int = 0,
+        var gridReferenceHeight: Int = 0,
+        var gridHostWidth: Int = 0,
+        var gridHostHeight: Int = 0,
+        var gridScale: Float = 0f,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -674,6 +680,12 @@ grid.visibility = View.VISIBLE
 
     private fun resetWebViewViewportScale(pane: BrowserPane) {
         pane.gridScalePercent = null
+        pane.gridTransformApplied = false
+        pane.gridReferenceWidth = 0
+        pane.gridReferenceHeight = 0
+        pane.gridHostWidth = 0
+        pane.gridHostHeight = 0
+        pane.gridScale = 0f
         val webView = pane.webView
         val host = webView.parent as? FrameLayout ?: return
 
@@ -708,82 +720,76 @@ grid.visibility = View.VISIBLE
     }
 
     private fun applyGridWebViewTransform(
-        pane: BrowserPane,
-        referenceWidth: Int,
-        referenceHeight: Int,
-    ) {
-        val webView = pane.webView
-        val host = webView.parent as? FrameLayout ?: return
-        val hostWidth = host.width
-        val hostHeight = host.height
-        if (hostWidth <= 0 || hostHeight <= 0 || referenceWidth <= 0 || referenceHeight <= 0) return
+          pane: BrowserPane,
+          referenceWidth: Int,
+          referenceHeight: Int,
+      ): Boolean {
+          val webView = pane.webView
+          val host = webView.parent as? FrameLayout ?: return false
+          val hostWidth = host.width
+          val hostHeight = host.height
+          if (hostWidth <= 0 || hostHeight <= 0 || referenceWidth <= 0 || referenceHeight <= 0) return false
 
-        val scale = minOf(
-            hostWidth.toFloat() / referenceWidth.toFloat(),
-            hostHeight.toFloat() / referenceHeight.toFloat(),
-        )
-        val scaledWidth = (referenceWidth * scale).toInt()
-        val scaledHeight = (referenceHeight * scale).toInt()
-        val scalePercent = (scale * 100f).toInt().coerceIn(10, 100)
+          val scale = minOf(
+              hostWidth.toFloat() / referenceWidth.toFloat(),
+              hostHeight.toFloat() / referenceHeight.toFloat(),
+          )
+          val scaledWidth = (referenceWidth * scale).toInt()
+          val scaledHeight = (referenceHeight * scale).toInt()
+          val layoutParams = webView.layoutParams
+          val needsLayoutParams = layoutParams.width != referenceWidth || layoutParams.height != referenceHeight
+          val changed = !pane.gridTransformApplied ||
+              pane.gridReferenceWidth != referenceWidth ||
+              pane.gridReferenceHeight != referenceHeight ||
+              pane.gridHostWidth != hostWidth ||
+              pane.gridHostHeight != hostHeight ||
+              kotlin.math.abs(pane.gridScale - scale) > 0.0005f ||
+              needsLayoutParams
+          if (!changed) return false
 
-        pane.gridScalePercent = scalePercent
-        host.clipChildren = true
-        host.clipToPadding = true
+          pane.gridScalePercent = (scale * 100f).toInt().coerceIn(10, 100)
+          pane.gridReferenceWidth = referenceWidth
+          pane.gridReferenceHeight = referenceHeight
+          pane.gridHostWidth = hostWidth
+          pane.gridHostHeight = hostHeight
+          pane.gridScale = scale
+          pane.gridTransformApplied = true
 
-        webView.layoutParams = FrameLayout.LayoutParams(referenceWidth, referenceHeight)
-        webView.pivotX = 0f
-        webView.pivotY = 0f
-        webView.scaleX = scale
-        webView.scaleY = scale
-        webView.translationX = ((hostWidth - scaledWidth).coerceAtLeast(0) / 2f)
-        webView.translationY = ((hostHeight - scaledHeight).coerceAtLeast(0) / 2f)
+          host.clipChildren = true
+          host.clipToPadding = true
 
-        pane.clickLayer.layoutParams = FrameLayout.LayoutParams(referenceWidth, referenceHeight)
-        pane.clickLayer.pivotX = 0f
-        pane.clickLayer.pivotY = 0f
-        pane.clickLayer.scaleX = scale
-        pane.clickLayer.scaleY = scale
-        pane.clickLayer.translationX = webView.translationX
-        pane.clickLayer.translationY = webView.translationY
+          // Only changing these params when the viewport dimensions actually
+          // change prevents the layout listeners from feeding a redraw loop.
+          if (needsLayoutParams) {
+              webView.layoutParams = FrameLayout.LayoutParams(referenceW    private fun refreshGridPaneThumbnails() {
+          val browserContent = findViewById<View>(R.id.browser_content)
+          val fullViewportWidth = browserContent.width - browserContent.paddingLeft - browserContent.paddingRight
+          val fullViewportHeight = browserContent.height - browserContent.paddingTop - browserContent.paddingBottom
+          if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
 
-        // Render with the same viewport as fullscreen, then scale the whole
-        // surface down. This prevents responsive reflow and keeps the entire
-        // page visible inside every grid cell.
-        webView.settings.loadWithOverviewMode = true
-        webView.settings.useWideViewPort = true
-        webView.setInitialScale(0)
-        webView.requestLayout()
-    }
+          panes.forEach { pane ->
+              if (pane.container.parent !== pane.thumbnailHost) return@forEach
+              val webViewHost = pane.webView.parent as? FrameLayout ?: return@forEach
+              if (webViewHost.width <= 0 || webViewHost.height <= 0) return@forEach
 
-    private fun refreshGridPaneThumbnails() {
-        val browserContent = findViewById<View>(R.id.browser_content)
-        val fullViewportWidth = browserContent.width - browserContent.paddingLeft - browserContent.paddingRight
-        val fullViewportHeight = browserContent.height - browserContent.paddingTop - browserContent.paddingBottom
-        if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
+              pane.container.pivotX = 0f
+              pane.container.pivotY = 0f
+              pane.container.scaleX = 1f
+              pane.container.scaleY = 1f
+              pane.container.translationX = 0f
+              pane.container.translationY = 0f
 
-        panes.forEach { pane ->
-            if (pane.container.parent !== pane.thumbnailHost) return@forEach
-            val webViewHost = pane.webView.parent as? FrameLayout ?: return@forEach
-            if (webViewHost.width <= 0 || webViewHost.height <= 0) return@forEach
-
-            // The WebView keeps the fullscreen viewport dimensions while its
-            // entire surface is scaled into the smaller body of the card.
-            // This gives every instance the same page composition as fullscreen
-            // instead of asking the site to reflow into a narrow phone column.
-            pane.container.pivotX = 0f
-            pane.container.pivotY = 0f
-            pane.container.scaleX = 1f
-            pane.container.scaleY = 1f
-            pane.container.translationX = 0f
-            pane.container.translationY = 0f
-            applyGridWebViewTransform(pane, fullViewportWidth, fullViewportHeight)
-            pane.webView.post {
-                pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-            }
-        }
-    }
-
-        private fun refreshAutoClickEditors() {
+              // Reapply only after an actual size change. Repeated requestLayout()
+              // and resize events here caused visible flashing and blank panes.
+              val changed = applyGridWebViewTransform(pane, fullViewportWidth, fullViewportHeight)
+              if (changed) {
+                  pane.webView.post {
+                      pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                  }
+              }
+          }
+      }
+            private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
