@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
 
     private data class BrowserPane(
         val container: View,
+        val thumbnailHost: FrameLayout,
         var webView: WebView,
         val clickLayer: FrameLayout,
         val titleView: TextView,
@@ -107,14 +108,24 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         )
 
         definitions.forEachIndexed { index, definition ->
+              val grid = findViewById<GridLayout>(R.id.browser_grid)
+              val container = findViewById<View>(definition.paneId)
+              val thumbnailHost = FrameLayout(this).apply {
+                  clipChildren = true
+                  clipToPadding = true
+              }
+              grid.removeView(container)
+              grid.addView(thumbnailHost, index, paneLayoutParams(index))
+              thumbnailHost.addView(container, FrameLayout.LayoutParams(1, 1))
               val webView = findViewById<WebView>(definition.webViewId)
               val clickLayer = FrameLayout(this).apply {
                   visibility = View.GONE
                   isClickable = false
               }
               (webView.parent as? FrameLayout)?.addView(clickLayer, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-              val pane = BrowserPane(
-                  container = findViewById(definition.paneId),
+             val pane = BrowserPane(
+                   container = container,
+                   thumbnailHost = thumbnailHost,
                   webView = webView,
                   clickLayer = clickLayer,
                   titleView = findViewById(definition.titleId),
@@ -301,6 +312,10 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         findViewById<View>(R.id.app_toolbar).visibility = View.GONE
         if (pane.container.parent !== fullscreenOverlay) {
             (pane.container.parent as? ViewGroup)?.removeView(pane.container)
+            pane.container.scaleX = 1f
+            pane.container.scaleY = 1f
+            pane.container.translationX = 0f
+            pane.container.translationY = 0f
             fullscreenOverlay.addView(pane.container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
         grid.visibility = View.GONE
@@ -318,10 +333,9 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
         if (selectedIndex >= 0) {
-            hideAutoClickerEditor(selectedIndex, stop = false)
             val pane = panes[selectedIndex]
             fullscreenOverlay.removeView(pane.container)
-            grid.addView(pane.container, selectedIndex, paneLayoutParams(selectedIndex))
+            pane.thumbnailHost.addView(pane.container, FrameLayout.LayoutParams(1, 1))
         }
         fullscreenOverlay.visibility = View.GONE
         findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
@@ -333,7 +347,35 @@ grid.visibility = View.VISIBLE
             setPaneActionState(index)
         }
         grid.requestLayout()
-        refreshAutoClickEditors()
+        grid.post {
+            refreshGridPaneThumbnails()
+            refreshAutoClickEditors()
+        }
+    }
+
+    private fun refreshGridPaneThumbnails() {
+        val browserContent = findViewById<View>(R.id.browser_content)
+        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
+        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
+
+        panes.forEach { pane ->
+            if (pane.container.parent !== pane.thumbnailHost) return@forEach
+            val hostWidth = pane.thumbnailHost.width
+            val hostHeight = pane.thumbnailHost.height
+            if (hostWidth <= 0 || hostHeight <= 0) return@forEach
+
+            val scale = minOf(
+                hostWidth.toFloat() / targetWidth,
+                hostHeight.toFloat() / targetHeight,
+            )
+            pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
+            pane.container.pivotX = 0f
+            pane.container.pivotY = 0f
+            pane.container.scaleX = scale
+            pane.container.scaleY = scale
+            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
+            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
+        }
     }
 
     private fun refreshAutoClickEditors() {
