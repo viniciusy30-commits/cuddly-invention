@@ -1,6 +1,9 @@
 package com.example.quadbrowser
 
 import android.accounts.AccountManager
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -39,6 +42,8 @@ import androidx.core.content.ContextCompat
 import androidx.webkit.WebSettingsCompat
 import kotlin.math.abs
 import kotlin.math.roundToLong
+import org.json.JSONArray
+import org.json.JSONObject
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 
@@ -49,6 +54,12 @@ class MainActivity : AppCompatActivity() {
         const val WEBVIEW_URL_PREFIX = "webview_url_"
         const val PANE_URL_PREFIX = "pane_url_"
         const val PANE_OPEN_PREFIX = "pane_open_"
+        const val PANE_PAUSED_PREFIX = "pane_paused_"
+        const val PANE_ORDER_KEY = "pane_order"
+        const val PANE_NAME_PREFIX = "pane_name_"
+        const val PANE_COLOR_PREFIX = "pane_color_"
+        const val PANE_AVATAR_PREFIX = "pane_avatar_"
+        const val AUTO_PRESET_PREFIX = "auto_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
@@ -58,10 +69,13 @@ class MainActivity : AppCompatActivity() {
 
     private data class ClickPoint(var x: Float, var y: Float, var intervalMs: Long = 1000L)
 
+    private data class AutoClickPreset(val name: String, val points: List<ClickPoint>)
+
     private data class BrowserPane(
         val container: View,
         val thumbnailHost: FrameLayout,
         var webView: WebView,
+        val avatarView: TextView,
         val clickLayer: FrameLayout,
         val titleView: TextView,
         val subtitleView: TextView,
@@ -75,6 +89,7 @@ class MainActivity : AppCompatActivity() {
         val profileName: String,
         val webViewId: Int,
         var isOpen: Boolean = true,
+        var isPaused: Boolean = false,
         var pendingUrl: String? = null,
         var lastUrl: String? = null,
         var lastTitle: String? = null,
@@ -90,6 +105,9 @@ class MainActivity : AppCompatActivity() {
     private val panes = mutableListOf<BrowserPane>()
     private lateinit var fullscreenOverlay: FrameLayout
     private var fullscreenPaneIndex: Int? = null
+    private var paneOrder = mutableListOf(0, 1, 2, 3)
+    private val defaultPaneNames = listOf("Conta principal", "Conta secundária", "Conta de trocas", "Conta de farm")
+    private val paneColorOptions = listOf("#5869DD", "#D94F66", "#00A896", "#F0A202", "#7B61FF")
     private var pendingGoogleAccountRequest: Pair<Int, String>? = null
     private var isDarkTheme = false
     private var isActivityVisible = false
@@ -114,10 +132,10 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         }
 
         val definitions = listOf(
-            PaneDefinition(R.id.pane_1, R.id.pane_title_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
-            PaneDefinition(R.id.pane_2, R.id.pane_title_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
-            PaneDefinition(R.id.pane_3, R.id.pane_title_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
-            PaneDefinition(R.id.pane_4, R.id.pane_title_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
+            PaneDefinition(R.id.pane_1, R.id.avatar_1, R.id.pane_title_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
+            PaneDefinition(R.id.pane_2, R.id.avatar_2, R.id.pane_title_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
+            PaneDefinition(R.id.pane_3, R.id.avatar_3, R.id.pane_title_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
+            PaneDefinition(R.id.pane_4, R.id.avatar_4, R.id.pane_title_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
         )
 
         definitions.forEachIndexed { index, definition ->
@@ -140,6 +158,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                    container = container,
                    thumbnailHost = thumbnailHost,
                   webView = webView,
+                  avatarView = findViewById(definition.avatarId),
                   clickLayer = clickLayer,
                   titleView = findViewById(definition.titleId),
                 subtitleView = findViewById(definition.subtitleId),
@@ -154,9 +173,13 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 webViewId = definition.webViewId,
             )
             panes += pane
+            applyPaneIdentityUi(index)
             configureClickLayer(index)
             configureWebView(pane.webView, pane.profileName, index)
             pane.navigateButton.setOnClickListener { showNavigationDialog(index) }
+            pane.titleView.setOnClickListener { showPaneIdentityDialog(index) }
+            pane.avatarView.setOnClickListener { showPaneIdentityDialog(index) }
+            configurePaneReordering(index)
             pane.reloadButton.setOnClickListener {
                   if (pane.isOpen) {
                       val currentUrl = pane.webView.url ?: pane.lastUrl
@@ -180,13 +203,18 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             pane.closeButton.setOnClickListener { setPaneOpen(index, false) }
             pane.reopenButton.setOnClickListener { setPaneOpen(index, true) }
             restorePaneState(index, pane.webView, savedInstanceState)
+            val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
             val open = savedInstanceState?.getBoolean(paneOpenKey(index))
-                ?: getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(paneOpenKey(index), true)
+                ?: preferences.getBoolean(paneOpenKey(index), true)
+            pane.isPaused = savedInstanceState?.getBoolean(panePausedKey(index))
+                ?: preferences.getBoolean(panePausedKey(index), false)
             applyPaneOpenUi(index, open)
              setPaneActionState(index)
             pane.webView.contentDescription = getString(R.string.webview_description, index + 1)
         }
 
+        paneOrder = loadPaneOrder(savedInstanceState)
+        bindGlobalControls()
         savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let { fullscreenPaneIndex = it }
         applyPaneLayout()
     }
@@ -196,6 +224,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         val restoredUrl = savedInstanceState?.getString(webViewUrlKey(index))
             ?: getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getString(paneUrlKey(index), null)
         val pane = panes.getOrNull(index)
+        if (pane != null) applyPaneIdentityUi(index)
         pane?.lastUrl = webView.url?.takeIf { it.isNotBlank() && it != "about:blank" } ?: restoredUrl
         if (webView.url.isNullOrBlank() && !restoredUrl.isNullOrBlank()) {
             webView.loadUrl(restoredUrl)
@@ -223,6 +252,239 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         }
         dialog.show()
+    }
+
+
+    private fun paneName(index: Int): String = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+        .getString(PANE_NAME_PREFIX + index, null)
+        ?.takeIf { it.isNotBlank() }
+        ?: defaultPaneNames.getOrElse(index) { "Conta " + (index + 1) }
+
+    private fun paneColor(index: Int): String = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+        .getString(PANE_COLOR_PREFIX + index, null)
+        ?.takeIf { it.isNotBlank() && runCatching { Color.parseColor(it) }.isSuccess }
+        ?: paneColorOptions.getOrElse(index) { paneColorOptions.first() }
+
+    private fun paneAvatar(index: Int): String = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+        .getString(PANE_AVATAR_PREFIX + index, null)
+        ?.takeIf { it.isNotBlank() }
+        ?: (index + 1).toString()
+
+    private fun applyPaneIdentityUi(index: Int) {
+        val pane = panes.getOrNull(index) ?: return
+        val color = Color.parseColor(paneColor(index))
+        pane.avatarView.text = paneAvatar(index).take(3)
+        pane.avatarView.setTextColor(Color.WHITE)
+        pane.avatarView.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color)
+        }
+        refreshPaneHeader(index)
+    }
+
+    private fun refreshPaneHeader(index: Int) {
+        val pane = panes.getOrNull(index) ?: return
+        pane.titleView.text = paneName(index)
+        val position = (paneOrder.indexOf(index) + 1).coerceAtLeast(1)
+        pane.subtitleView.text = when {
+            !pane.isOpen -> getString(R.string.instance_paused_detail)
+            pane.isPaused -> getString(R.string.instance_temporarily_paused, position)
+            else -> getString(
+                R.string.instance_page_detail,
+                pane.lastTitle?.takeIf { it.isNotBlank() } ?: getString(R.string.page_ready),
+                position,
+            )
+        }
+    }
+
+    private fun showPaneIdentityDialog(index: Int) {
+        val nameInput = EditText(this).apply {
+            setSingleLine(true)
+            hint = getString(R.string.account_name_hint)
+            setText(paneName(index))
+            setSelection(text.length)
+        }
+        val avatarInput = EditText(this).apply {
+            setSingleLine(true)
+            hint = getString(R.string.account_avatar_hint)
+            setText(paneAvatar(index))
+            setSelection(text.length)
+        }
+        val colorLabels = arrayOf(
+            getString(R.string.account_color_blue),
+            getString(R.string.account_color_red),
+            getString(R.string.account_color_green),
+            getString(R.string.account_color_gold),
+            getString(R.string.account_color_purple),
+        )
+        val colorSpinner = Spinner(this).apply {
+            adapter = ArrayAdapter(this@MainActivity, android.R.layout.simple_spinner_item, colorLabels).also {
+                it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            }
+            setSelection(paneColorOptions.indexOf(paneColor(index)).coerceAtLeast(0))
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(4), dp(20), 0)
+            addView(nameInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
+            addView(avatarInput, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
+            addView(colorSpinner, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)))
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.edit_instance_identity)
+            .setView(content)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.save_identity) { _, _ ->
+                val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+                val safeName = nameInput.text.toString().trim().ifBlank { defaultPaneNames[index] }
+                val safeAvatar = avatarInput.text.toString().trim().ifBlank { (index + 1).toString() }
+                preferences.edit()
+                    .putString(PANE_NAME_PREFIX + index, safeName)
+                    .putString(PANE_AVATAR_PREFIX + index, safeAvatar.take(3))
+                    .putString(PANE_COLOR_PREFIX + index, paneColorOptions[colorSpinner.selectedItemPosition.coerceIn(paneColorOptions.indices)])
+                    .apply()
+                applyPaneIdentityUi(index)
+            }
+            .show()
+    }
+
+    private fun bindGlobalControls() {
+        findViewById<Button>(R.id.global_reload).setOnClickListener { reloadAllPanes() }
+        findViewById<Button>(R.id.global_same_address).setOnClickListener { showGlobalAddressDialog() }
+        findViewById<Button>(R.id.global_pause).setOnClickListener { pauseAllPanes() }
+        findViewById<Button>(R.id.global_resume).setOnClickListener { resumeAllPanes() }
+        findViewById<Button>(R.id.global_close).setOnClickListener { closeAllPanes() }
+        findViewById<Button>(R.id.global_auto_click).setOnClickListener { toggleAutoClickerAll() }
+    }
+
+    private fun reloadAllPanes() {
+        panes.forEach { pane ->
+            if (!pane.isOpen) return@forEach
+            val url = pane.webView.url ?: pane.lastUrl
+            if (url.isNullOrBlank() || url == "about:blank") pane.webView.reload()
+            else {
+                pane.webView.stopLoading()
+                pane.webView.loadUrl(url)
+            }
+        }
+        Toast.makeText(this, R.string.global_reloaded, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showGlobalAddressDialog() {
+        val input = EditText(this).apply {
+            setSingleLine(true)
+            hint = getString(R.string.address_hint)
+            setPadding(dp(18), 0, dp(18), 0)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.global_same_address_title)
+            .setMessage(R.string.global_same_address_message)
+            .setView(input)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.go) { _, _ ->
+                panes.forEach { pane -> if (pane.isOpen) loadInput(pane.webView, input.text.toString()) }
+            }
+            .show()
+    }
+
+    private fun pauseAllPanes() {
+        panes.forEachIndexed { index, pane ->
+            stopAutoClicker(index)
+            if (pane.isOpen && !pane.isPaused) {
+                pane.webView.onPause()
+                pane.isPaused = true
+            }
+            refreshPaneHeader(index)
+        }
+        persistAllPaneState()
+        Toast.makeText(this, R.string.global_paused, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun resumeAllPanes() {
+        panes.forEachIndexed { index, pane ->
+            if (!pane.isOpen) setPaneOpen(index, true)
+            if (pane.isPaused) {
+                pane.webView.onResume()
+                pane.isPaused = false
+            }
+            refreshPaneHeader(index)
+        }
+        persistAllPaneState()
+        Toast.makeText(this, R.string.global_resumed, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun closeAllPanes() {
+        panes.indices.forEach { setPaneOpen(it, false) }
+        Toast.makeText(this, R.string.global_closed, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun toggleAutoClickerAll() {
+        if (panes.any { it.isAutoClicking }) {
+            panes.indices.forEach { stopAutoClicker(it, notify = false) }
+            Toast.makeText(this, R.string.global_auto_click_stopped, Toast.LENGTH_SHORT).show()
+            return
+        }
+        var started = 0
+        panes.forEachIndexed { index, pane ->
+            if (pane.isOpen && pane.autoClickPoints.isNotEmpty()) {
+                startAutoClicker(index)
+                started++
+            }
+        }
+        if (started == 0) Toast.makeText(this, R.string.global_auto_click_need_points, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun configurePaneReordering(index: Int) {
+        val pane = panes.getOrNull(index) ?: return
+        var startX = 0f
+        var startY = 0f
+        var dragging = false
+        pane.titleView.setOnTouchListener { view, event ->
+            if (fullscreenPaneIndex != null) return@setOnTouchListener false
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    startX = event.rawX
+                    startY = event.rawY
+                    dragging = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!dragging && (abs(event.rawX - startX) > dp(12) || abs(event.rawY - startY) > dp(12))) dragging = true
+                    if (dragging) {
+                        val from = paneOrder.indexOf(index)
+                        val target = nearestPanePosition(event.rawX, event.rawY)
+                        if (from >= 0 && target >= 0 && from != target) swapPanePositions(from, target)
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!dragging) view.performClick()
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> true
+                else -> false
+            }
+        }
+    }
+
+    private fun nearestPanePosition(rawX: Float, rawY: Float): Int {
+        val location = IntArray(2)
+        return paneOrder.indices.minByOrNull { position ->
+            val host = panes[paneOrder[position]].thumbnailHost
+            host.getLocationOnScreen(location)
+            val centerX = location[0] + host.width / 2f
+            val centerY = location[1] + host.height / 2f
+            (centerX - rawX) * (centerX - rawX) + (centerY - rawY) * (centerY - rawY)
+        } ?: -1
+    }
+
+    private fun swapPanePositions(from: Int, to: Int) {
+        if (from !in paneOrder.indices || to !in paneOrder.indices || from == to) return
+        val moved = paneOrder[from]
+        paneOrder[from] = paneOrder[to]
+        paneOrder[to] = moved
+        persistPaneOrder()
+        applyPaneLayout()
     }
 
     private fun maybeChooseGoogleAccount(index: Int, rawUrl: String): Boolean {
@@ -367,14 +629,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         pane.reloadButton.visibility = if (open) View.VISIBLE else View.GONE
         pane.fullscreenButton.visibility = if (open) View.VISIBLE else View.GONE
         pane.closeButton.visibility = if (open) View.VISIBLE else View.GONE
-        if (open) {
-            val title = pane.lastTitle?.takeIf { it.isNotBlank() } ?: if (pane.lastUrl.isNullOrBlank()) getString(R.string.ready_to_browse) else getString(R.string.page_ready)
-            pane.titleView.text = title
-            pane.subtitleView.text = getString(R.string.instance_active, index + 1)
-        } else {
-            pane.titleView.text = getString(R.string.instance_paused)
-            pane.subtitleView.text = getString(R.string.instance_paused_detail)
-        }
+        refreshPaneHeader(index)
     }
 
     private fun recoverRenderer(index: Int) {
@@ -459,6 +714,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         fullscreenOverlay.visibility = View.GONE
         findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
 grid.visibility = View.VISIBLE
+        applyGridPaneOrder()
         panes.forEachIndexed { index, pane ->
             pane.container.visibility = View.VISIBLE
             applyPaneOpenUi(index, pane.isOpen)
@@ -470,6 +726,18 @@ grid.visibility = View.VISIBLE
             refreshGridPaneThumbnails()
             refreshAutoClickEditors()
         }
+    }
+
+    private fun applyGridPaneOrder() {
+        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        grid.removeAllViews()
+        paneOrder.forEachIndexed { position, identity ->
+            val pane = panes.getOrNull(identity) ?: return@forEachIndexed
+            grid.addView(pane.thumbnailHost, paneLayoutParams(position))
+            refreshPaneHeader(identity)
+        }
+        grid.requestLayout()
+        grid.post { refreshGridPaneThumbnails() }
     }
 
     private fun refreshGridPaneThumbnails() {
@@ -576,6 +844,98 @@ grid.visibility = View.VISIBLE
           pane.clickLayer.visibility = View.VISIBLE
           renderAutoClickEditor(index)
       }
+
+    private fun builtInAutoClickPresets(): List<AutoClickPreset> = listOf(
+        AutoClickPreset("Farm rápido", listOf(ClickPoint(0.5f, 0.5f, 250L), ClickPoint(0.7f, 0.5f, 250L))),
+        AutoClickPreset("Farm lento", listOf(ClickPoint(0.5f, 0.5f, 1800L), ClickPoint(0.7f, 0.5f, 1800L))),
+        AutoClickPreset("Evento", listOf(ClickPoint(0.5f, 0.5f, 1000L))),
+        AutoClickPreset("Batalha", listOf(ClickPoint(0.35f, 0.5f, 400L), ClickPoint(0.65f, 0.5f, 400L))),
+        AutoClickPreset("Coleta", listOf(ClickPoint(0.5f, 0.7f, 750L), ClickPoint(0.5f, 0.35f, 750L))),
+    )
+
+    private fun customAutoClickPresets(index: Int): List<AutoClickPreset> {
+        val raw = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getString(AUTO_PRESET_PREFIX + index, null) ?: return emptyList()
+        return runCatching {
+            val array = JSONArray(raw)
+            buildList {
+                for (presetIndex in 0 until array.length()) {
+                    val presetObject = array.getJSONObject(presetIndex)
+                    val pointsArray = presetObject.optJSONArray("points") ?: JSONArray()
+                    val points = buildList {
+                        for (pointIndex in 0 until pointsArray.length()) {
+                            val point = pointsArray.getJSONObject(pointIndex)
+                            add(ClickPoint(point.optDouble("x", 0.5).toFloat(), point.optDouble("y", 0.5).toFloat(), point.optLong("intervalMs", 1000L)))
+                        }
+                    }
+                    add(AutoClickPreset(presetObject.optString("name"), points))
+                }
+            }
+        }.getOrDefault(emptyList()).filter { it.name.isNotBlank() }
+    }
+
+    private fun saveAutoClickPreset(index: Int, name: String) {
+        val pane = panes.getOrNull(index) ?: return
+        if (pane.autoClickPoints.isEmpty()) {
+            Toast.makeText(this, R.string.auto_clicker_need_point, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val array = JSONArray()
+        customAutoClickPresets(index).filterNot { it.name.equals(name, ignoreCase = true) }.forEach { preset ->
+            val presetObject = JSONObject().put("name", preset.name)
+            val points = JSONArray()
+            preset.points.forEach { point ->
+                points.put(JSONObject().put("x", point.x).put("y", point.y).put("intervalMs", point.intervalMs))
+            }
+            presetObject.put("points", points)
+            array.put(presetObject)
+        }
+        val current = JSONObject().put("name", name)
+        val currentPoints = JSONArray()
+        pane.autoClickPoints.forEach { point ->
+            currentPoints.put(JSONObject().put("x", point.x).put("y", point.y).put("intervalMs", point.intervalMs))
+        }
+        current.put("points", currentPoints)
+        array.put(current)
+        getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putString(AUTO_PRESET_PREFIX + index, array.toString()).apply()
+        Toast.makeText(this, R.string.auto_clicker_preset_saved, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showSavePresetDialog(index: Int) {
+        val input = EditText(this).apply {
+            setSingleLine(true)
+            hint = getString(R.string.auto_clicker_preset_name_hint)
+        }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.auto_clicker_save_preset)
+            .setView(input)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.auto_clicker_save) { _, _ ->
+                val name = input.text.toString().trim()
+                if (name.isBlank()) Toast.makeText(this, R.string.auto_clicker_preset_name_required, Toast.LENGTH_SHORT).show()
+                else saveAutoClickPreset(index, name)
+            }
+            .show()
+    }
+
+    private fun applyAutoClickPreset(index: Int, preset: AutoClickPreset) {
+        val pane = panes.getOrNull(index) ?: return
+        stopAutoClicker(index)
+        pane.autoClickPoints = preset.points.map { ClickPoint(it.x, it.y, it.intervalMs) }.toMutableList()
+        pane.isAutoClickEditing = true
+        pane.clickLayer.visibility = View.VISIBLE
+        renderAutoClickEditor(index)
+        Toast.makeText(this, getString(R.string.auto_clicker_preset_applied, preset.name), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun showPresetDialog(index: Int) {
+        val presets = builtInAutoClickPresets() + customAutoClickPresets(index)
+        AlertDialog.Builder(this)
+            .setTitle(R.string.auto_clicker_presets)
+            .setItems(presets.map { it.name }.toTypedArray()) { _, which -> applyAutoClickPreset(index, presets[which]) }
+            .setNeutralButton(R.string.auto_clicker_save_preset) { _, _ -> showSavePresetDialog(index) }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
 
       private fun showPointIntervalDialog(index: Int, pointIndex: Int) {
           val pane = panes.getOrNull(index) ?: return
@@ -755,7 +1115,8 @@ layer.addView(marker)
            row.addView(playPause, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
            row.addView(compactAction("+", R.string.auto_clicker_add_point) { addAutoClickPointAtCenter(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
            row.addView(compactAction("⌫", R.string.auto_clicker_remove) { removeAllAutoClickPoints(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
-panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), 0, 0) })
+           panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
           layer.addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP })
       }
 
@@ -940,9 +1301,11 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
 
     private fun persistAllPaneState() {
         getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().also { editor ->
+            editor.putString(PANE_ORDER_KEY, paneOrder.joinToString(","))
             panes.forEachIndexed { index, pane ->
                 (pane.lastUrl ?: pane.webView.url)?.takeIf { it.isNotBlank() && it != "about:blank" }?.let { editor.putString(paneUrlKey(index), it) }
                 editor.putBoolean(paneOpenKey(index), pane.isOpen)
+                editor.putBoolean(panePausedKey(index), pane.isPaused)
             }
         }.apply()
     }
@@ -967,6 +1330,7 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        outState.putIntArray(PANE_ORDER_KEY, paneOrder.toIntArray())
         fullscreenPaneIndex?.let { outState.putInt(FULLSCREEN_PANE_KEY, it) }
         panes.forEachIndexed { index, pane ->
             outState.putBoolean(paneOpenKey(index), pane.isOpen)
@@ -1014,10 +1378,26 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
         super.onStop()
     }
 
+    private fun loadPaneOrder(savedInstanceState: Bundle?): MutableList<Int> {
+        val saved = savedInstanceState?.getIntArray(PANE_ORDER_KEY)?.toList()
+        val stored = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getString(PANE_ORDER_KEY, null)
+            ?.split(",")?.mapNotNull { it.toIntOrNull() }
+        val candidate = saved ?: stored ?: listOf(0, 1, 2, 3)
+        return if (candidate.size == 4 && candidate.toSet() == setOf(0, 1, 2, 3)) candidate.toMutableList()
+        else mutableListOf(0, 1, 2, 3)
+    }
+
+    private fun persistPaneOrder() {
+        getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit()
+            .putString(PANE_ORDER_KEY, paneOrder.joinToString(","))
+            .apply()
+    }
+
     private fun webViewStateKey(index: Int): String = WEBVIEW_STATE_PREFIX + index
     private fun webViewUrlKey(index: Int): String = WEBVIEW_URL_PREFIX + index
     private fun paneUrlKey(index: Int): String = PANE_URL_PREFIX + index
     private fun paneOpenKey(index: Int): String = PANE_OPEN_PREFIX + index
+    private fun panePausedKey(index: Int): String = PANE_PAUSED_PREFIX + index
 
     override fun onDestroy() {
         persistAllPaneState()
@@ -1028,6 +1408,7 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
 
     private data class PaneDefinition(
         val paneId: Int,
+        val avatarId: Int,
         val titleId: Int,
         val subtitleId: Int,
         val navigateButtonId: Int,
