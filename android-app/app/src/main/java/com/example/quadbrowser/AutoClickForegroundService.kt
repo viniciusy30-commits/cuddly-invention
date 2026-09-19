@@ -12,12 +12,15 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 
 class AutoClickForegroundService : Service() {
+    private var showAutoClickStatus = false
     companion object {
         const val ACTION_START = "com.example.quadbrowser.action.START_AUTO_CLICK"
+        const val ACTION_START_BROWSER = "com.example.quadbrowser.action.START_BROWSER"
         const val ACTION_STOP = "com.example.quadbrowser.action.STOP_AUTO_CLICK"
 
         private const val CHANNEL_ID = "auto_clicker_background"
         private const val NOTIFICATION_ID = 1001
+
     }
 
     override fun onCreate() {
@@ -36,18 +39,22 @@ class AutoClickForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == ACTION_STOP) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
+        when (intent?.action) {
+            ACTION_STOP -> {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
+                stopSelf()
+                return START_NOT_STICKY
             }
-            stopSelf()
-            return START_NOT_STICKY
+            ACTION_START -> showAutoClickStatus = true
+            ACTION_START_BROWSER -> showAutoClickStatus = false
         }
 
-        val notification = buildNotification()
+        val notification = buildNotification(showAutoClickStatus)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             startForeground(
                 NOTIFICATION_ID,
@@ -60,7 +67,7 @@ class AutoClickForegroundService : Service() {
         return START_STICKY
     }
 
-    private fun buildNotification(): Notification {
+    private fun buildNotification(showAutoClickStatus: Boolean): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,
@@ -70,10 +77,12 @@ class AutoClickForegroundService : Service() {
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_auto_click)
-            .setContentTitle(getString(R.string.auto_clicker_background_title))
-            .setContentText(getString(R.string.auto_clicker_background_message))
+            .setContentTitle(getString(if (showAutoClickStatus) R.string.auto_clicker_background_title else R.string.browser_background_title))
+            .setContentText(getString(if (showAutoClickStatus) R.string.auto_clicker_background_message else R.string.browser_background_message))
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()

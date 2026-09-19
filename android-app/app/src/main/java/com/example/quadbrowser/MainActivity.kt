@@ -2,13 +2,16 @@ package com.example.quadbrowser
 
 import android.accounts.AccountManager
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.util.Patterns
 import android.view.MotionEvent
 import android.view.View
@@ -49,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
+        const val NOTIFICATION_PERMISSION_REQUEST = 4101
     }
 
     private data class ClickPoint(var x: Float, var y: Float, var intervalMs: Long = 1000L)
@@ -87,6 +91,7 @@ class MainActivity : AppCompatActivity() {
     private var fullscreenPaneIndex: Int? = null
     private var pendingGoogleAccountRequest: Pair<Int, String>? = null
     private var isDarkTheme = false
+    private var isActivityVisible = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        requestNotificationPermissionIfNeeded()
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
 findViewById<ImageButton>(R.id.theme_toggle).apply {
@@ -770,14 +776,42 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
       }
 
        private fun startAutoClickBackgroundService() {
+           startBackgroundService(AutoClickForegroundService.ACTION_START)
+       }
+
+       private fun startBackgroundServiceForCurrentState() {
+           val action = if (panes.any { it.isAutoClicking }) {
+               AutoClickForegroundService.ACTION_START
+           } else {
+               AutoClickForegroundService.ACTION_START_BROWSER
+           }
+           startBackgroundService(action)
+       }
+
+       private fun startBackgroundService(action: String) {
            val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
-               .setAction(AutoClickForegroundService.ACTION_START)
-           ContextCompat.startForegroundService(this, serviceIntent)
+               .setAction(action)
+           try {
+               ContextCompat.startForegroundService(this, serviceIntent)
+           } catch (error: IllegalStateException) {
+               Log.w("QuadBrowser", "Unable to start background service", error)
+           }
        }
 
        private fun stopAutoClickBackgroundServiceIfIdle() {
-           if (panes.any { it.isAutoClicking }) return
+           if (panes.any { it.isAutoClicking } || !isActivityVisible) return
            stopService(Intent(this, AutoClickForegroundService::class.java))
+       }
+
+       private fun requestNotificationPermissionIfNeeded() {
+           if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+               ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+           ) {
+               requestPermissions(
+                   arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                   NOTIFICATION_PERMISSION_REQUEST,
+               )
+           }
        }
 
       private fun dispatchClick(webView: WebView, point: ClickPoint) {
@@ -913,11 +947,39 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
         super.onSaveInstanceState(outState)
     }
 
+    override fun onStart() {
+        super.onStart()
+        isActivityVisible = true
+        if (!panes.any { it.isAutoClicking }) {
+            stopService(Intent(this, AutoClickForegroundService::class.java))
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isActivityVisible = true
+        if (!panes.any { it.isAutoClicking }) {
+            stopService(Intent(this, AutoClickForegroundService::class.java))
+        }
+    }
+
     override fun onPause() {
         persistAllPaneState()
+        if (!isChangingConfigurations) startBackgroundServiceForCurrentState()
         super.onPause()
     }
-    override fun onStop() { persistAllPaneState(); super.onStop() }
+
+    override fun onUserLeaveHint() {
+        if (!isChangingConfigurations) startBackgroundServiceForCurrentState()
+        super.onUserLeaveHint()
+    }
+
+    override fun onStop() {
+        isActivityVisible = false
+        persistAllPaneState()
+        if (!isChangingConfigurations && !isFinishing) startBackgroundServiceForCurrentState()
+        super.onStop()
+    }
 
     private fun webViewStateKey(index: Int): String = WEBVIEW_STATE_PREFIX + index
     private fun webViewUrlKey(index: Int): String = WEBVIEW_URL_PREFIX + index

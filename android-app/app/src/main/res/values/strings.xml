@@ -58,6 +58,10 @@
     <string name="auto_clicker_background_channel_description">Mantém o Auto Click ativo enquanto o Quad Browser está minimizado.</string>
     <string name="auto_clicker_background_title">Auto Click ativo</string>
     <string name="auto_clicker_background_message">O Quad Browser continua funcionando em segundo plano.</string>
+    <string name="browser_background_channel">Quad Browser em segundo plano</string>
+    <string name="browser_background_channel_description">Mantém as instâncias do Quad Browser funcionando quando o app é minimizado ou a tela é apagada.</string>
+    <string name="browser_background_title">Quad Browser ativo</string>
+    <string name="browser_background_message">Toque aqui para voltar. As instâncias continuam funcionando.</string>
     <string name="google_account_picker_description">Escolha a conta Google para esta instância</string>
     <string name="google_account_not_selected">Nenhuma conta Google foi escolhida.</string>
         </resources>
