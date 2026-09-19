@@ -60,7 +60,7 @@
         <item name="android:background">@drawable/bg_icon_button</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:minHeight">0dp</item>
-        <item name="android:padding">7dp</item>
+        <item name="android:padding">4dp</item>
         <item name="android:tint">@color/text_primary</item>
         <item name="android:scaleType">centerInside</item>
     </style>

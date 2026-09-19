@@ -501,11 +501,7 @@ grid.visibility = View.VISIBLE
 
     private fun configureClickLayer(index: Int) {
           val pane = panes.getOrNull(index) ?: return
-          pane.clickLayer.setOnTouchListener { _, event ->
-              if (!pane.isAutoClickEditing || pane.isAutoClicking) return@setOnTouchListener false
-              if (event.actionMasked == MotionEvent.ACTION_UP) addAutoClickPoint(index, event.x, event.y)
-              true
-          }
+          pane.clickLayer.setOnTouchListener { _, _ -> false }
       }
 
       private fun beginAutoClickerEditor(index: Int) {
@@ -527,15 +523,10 @@ grid.visibility = View.VISIBLE
         pane.clickLayer.removeAllViews()
     }
 
-    private fun addAutoClickPoint(index: Int, x: Float, y: Float) {
+    private fun addAutoClickPointAtCenter(index: Int) {
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isAutoClickEditing || pane.isAutoClicking) return
-          val layerWidth = pane.clickLayer.width.coerceAtLeast(1).toFloat()
-          val layerHeight = pane.clickLayer.height.coerceAtLeast(1).toFloat()
-          pane.autoClickPoints.add(ClickPoint(
-              (x / layerWidth).coerceIn(0f, 1f),
-              (y / layerHeight).coerceIn(0f, 1f),
-          ))
+          pane.autoClickPoints.add(ClickPoint(0.5f, 0.5f))
           renderAutoClickEditor(index)
       }
 
@@ -724,6 +715,7 @@ layer.addView(marker)
            }
            pane.editorPlayPauseButton = playPause
            row.addView(playPause, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
+           row.addView(compactAction("+", R.string.auto_clicker_add_point) { addAutoClickPointAtCenter(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
            row.addView(compactAction("⌫", R.string.auto_clicker_remove) { removeAllAutoClickPoints(index) }, LinearLayout.LayoutParams(0, dp(32), 1f).apply { setMargins(0, dp(3), dp(3), 0) })
 panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
           layer.addView(panel, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { gravity = Gravity.TOP })
