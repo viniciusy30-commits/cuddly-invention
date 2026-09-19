@@ -736,8 +736,8 @@ grid.visibility = View.VISIBLE
           )
           val scaledWidth = (referenceWidth * scale).toInt()
           val scaledHeight = (referenceHeight * scale).toInt()
-          val layoutParams = webView.layoutParams
-          val needsLayoutParams = layoutParams.width != referenceWidth || layoutParams.height != referenceHeight
+          val currentLayoutParams = webView.layoutParams
+          val needsLayoutParams = currentLayoutParams.width != referenceWidth || currentLayoutParams.height != referenceHeight
           val changed = !pane.gridTransformApplied ||
               pane.gridReferenceWidth != referenceWidth ||
               pane.gridReferenceHeight != referenceHeight ||
@@ -757,11 +757,30 @@ grid.visibility = View.VISIBLE
 
           host.clipChildren = true
           host.clipToPadding = true
-
-          // Only changing these params when the viewport dimensions actually
-          // change prevents the layout listeners from feeding a redraw loop.
           if (needsLayoutParams) {
-              webView.layoutParams = FrameLayout.LayoutParams(referenceW    private fun refreshGridPaneThumbnails() {
+              webView.layoutParams = FrameLayout.LayoutParams(referenceWidth, referenceHeight)
+              pane.clickLayer.layoutParams = FrameLayout.LayoutParams(referenceWidth, referenceHeight)
+          }
+
+          val translationX = ((hostWidth - scaledWidth).coerceAtLeast(0) / 2f)
+          val translationY = ((hostHeight - scaledHeight).coerceAtLeast(0) / 2f)
+          webView.pivotX = 0f
+          webView.pivotY = 0f
+          webView.scaleX = scale
+          webView.scaleY = scale
+          webView.translationX = translationX
+          webView.translationY = translationY
+
+          pane.clickLayer.pivotX = 0f
+          pane.clickLayer.pivotY = 0f
+          pane.clickLayer.scaleX = scale
+          pane.clickLayer.scaleY = scale
+          pane.clickLayer.translationX = translationX
+          pane.clickLayer.translationY = translationY
+          return true
+      }
+
+      private fun refreshGridPaneThumbnails() {
           val browserContent = findViewById<View>(R.id.browser_content)
           val fullViewportWidth = browserContent.width - browserContent.paddingLeft - browserContent.paddingRight
           val fullViewportHeight = browserContent.height - browserContent.paddingTop - browserContent.paddingBottom
@@ -779,8 +798,8 @@ grid.visibility = View.VISIBLE
               pane.container.translationX = 0f
               pane.container.translationY = 0f
 
-              // Reapply only after an actual size change. Repeated requestLayout()
-              // and resize events here caused visible flashing and blank panes.
+              // Only update the native layout when a real size changes. This
+              // avoids the layout-listener redraw loop that caused flashing.
               val changed = applyGridWebViewTransform(pane, fullViewportWidth, fullViewportHeight)
               if (changed) {
                   pane.webView.post {
@@ -789,7 +808,8 @@ grid.visibility = View.VISIBLE
               }
           }
       }
-            private fun refreshAutoClickEditors() {
+
+                private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
