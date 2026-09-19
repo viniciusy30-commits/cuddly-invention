@@ -35,8 +35,13 @@
                 android:text="@string/app_subtitle" />
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/theme_toggle"
+        <Button
+              android:id="@+id/global_controls"
+              style="@style/ToolbarActionButton"
+              android:text="@string/global_controls" />
+
+          <ImageButton
+              android:id="@+id/theme_toggle"
             style="@style/ThemeButton"
             android:contentDescription="@string/theme_switch_to_dark"
             android:src="@drawable/ic_moon" />
