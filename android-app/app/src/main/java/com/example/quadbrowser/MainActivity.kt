@@ -60,6 +60,7 @@ class MainActivity : AppCompatActivity() {
         const val PANE_COLOR_PREFIX = "pane_color_"
         const val PANE_AVATAR_PREFIX = "pane_avatar_"
         const val AUTO_PRESET_PREFIX = "auto_preset_"
+        const val AUTO_DELETED_PRESET_PREFIX = "auto_deleted_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
@@ -882,6 +883,16 @@ grid.visibility = View.VISIBLE
         }.getOrDefault(emptyList()).filter { it.name.isNotBlank() }
     }
 
+    private fun deletedBuiltInAutoClickPresetNames(index: Int): Set<String> {
+        val raw = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getString(AUTO_DELETED_PRESET_PREFIX + index, null) ?: return emptySet()
+        return raw.split("\u001F").filter { it.isNotBlank() }.toSet()
+    }
+
+    private fun availableAutoClickPresets(index: Int): List<AutoClickPreset> {
+        val deletedNames = deletedBuiltInAutoClickPresetNames(index)
+        return builtInAutoClickPresets().filterNot { it.name in deletedNames } + customAutoClickPresets(index)
+    }
+
     private fun saveAutoClickPreset(index: Int, name: String) {
         val pane = panes.getOrNull(index) ?: return
         if (pane.autoClickPoints.isEmpty()) {
@@ -937,30 +948,35 @@ grid.visibility = View.VISIBLE
     }
 
     private fun deleteAutoClickPreset(index: Int, name: String) {
-        val remaining = customAutoClickPresets(index).filterNot { it.name.equals(name, ignoreCase = true) }
         val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
-        if (remaining.isEmpty()) {
-            preferences.edit().remove(AUTO_PRESET_PREFIX + index).apply()
+        val builtIn = builtInAutoClickPresets().any { it.name.equals(name, ignoreCase = true) }
+        if (builtIn) {
+            val deletedNames = deletedBuiltInAutoClickPresetNames(index).toMutableSet().apply { add(name) }
+            preferences.edit().putString(AUTO_DELETED_PRESET_PREFIX + index, deletedNames.joinToString("\u001F")).apply()
         } else {
-            val array = JSONArray()
-            remaining.forEach { preset ->
-                val presetObject = JSONObject().put("name", preset.name)
-                val points = JSONArray()
-                preset.points.forEach { point ->
-                    points.put(JSONObject().put("x", point.x).put("y", point.y).put("intervalMs", point.intervalMs))
+            val remaining = customAutoClickPresets(index).filterNot { it.name.equals(name, ignoreCase = true) }
+            if (remaining.isEmpty()) {
+                preferences.edit().remove(AUTO_PRESET_PREFIX + index).apply()
+            } else {
+                val array = JSONArray()
+                remaining.forEach { preset ->
+                    val presetObject = JSONObject().put("name", preset.name)
+                    val points = JSONArray()
+                    preset.points.forEach { point ->
+                        points.put(JSONObject().put("x", point.x).put("y", point.y).put("intervalMs", point.intervalMs))
+                    }
+                    presetObject.put("points", points)
+                    array.put(presetObject)
                 }
-                presetObject.put("points", points)
-                array.put(presetObject)
+                preferences.edit().putString(AUTO_PRESET_PREFIX + index, array.toString()).apply()
             }
-            preferences.edit().putString(AUTO_PRESET_PREFIX + index, array.toString()).apply()
         }
         Toast.makeText(this, getString(R.string.auto_clicker_preset_deleted, name), Toast.LENGTH_SHORT).show()
     }
-
     private fun showDeletePresetDialog(index: Int) {
-        val presets = customAutoClickPresets(index)
+        val presets = availableAutoClickPresets(index)
         if (presets.isEmpty()) {
-            Toast.makeText(this, R.string.auto_clicker_no_custom_presets, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, R.string.auto_clicker_no_presets, Toast.LENGTH_SHORT).show()
             return
         }
         AlertDialog.Builder(this)
@@ -979,9 +995,8 @@ grid.visibility = View.VISIBLE
             .setNegativeButton(R.string.cancel, null)
             .show()
     }
-
     private fun showPresetDialog(index: Int) {
-        val presets = builtInAutoClickPresets() + customAutoClickPresets(index)
+        val presets = availableAutoClickPresets(index)
         AlertDialog.Builder(this)
             .setTitle(R.string.auto_clicker_presets)
             .setItems(presets.map { it.name }.toTypedArray()) { _, which -> applyAutoClickPreset(index, presets[which]) }
