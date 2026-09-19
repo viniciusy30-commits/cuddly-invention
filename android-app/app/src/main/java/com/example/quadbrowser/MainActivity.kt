@@ -220,7 +220,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         }
 
         paneOrder = loadPaneOrder(savedInstanceState)
-        bindGlobalControls()
         savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let { fullscreenPaneIndex = it }
         applyPaneLayout()
     }
@@ -787,31 +786,25 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-        val browserContent = findViewById<View>(R.id.browser_content)
-        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
-        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
+          panes.forEach { pane ->
+              if (pane.container.parent !== pane.thumbnailHost) return@forEach
+              val hostWidth = pane.thumbnailHost.width
+              val hostHeight = pane.thumbnailHost.height
+              if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-        panes.forEach { pane ->
-            if (pane.container.parent !== pane.thumbnailHost) return@forEach
-            val hostWidth = pane.thumbnailHost.width
-            val hostHeight = pane.thumbnailHost.height
-            if (hostWidth <= 0 || hostHeight <= 0) return@forEach
+              // Render each WebView at its actual cell size. Scaling a full-screen
+              // WebView into a small host caused the lower game panes to be clipped.
+              pane.container.layoutParams = FrameLayout.LayoutParams(hostWidth, hostHeight)
+              pane.container.pivotX = 0f
+              pane.container.pivotY = 0f
+              pane.container.scaleX = 1f
+              pane.container.scaleY = 1f
+              pane.container.translationX = 0f
+              pane.container.translationY = 0f
+          }
+      }
 
-            val scale = minOf(
-                hostWidth.toFloat() / targetWidth,
-                hostHeight.toFloat() / targetHeight,
-            )
-            pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
-            pane.container.pivotX = 0f
-            pane.container.pivotY = 0f
-            pane.container.scaleX = scale
-            pane.container.scaleY = scale
-            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
-            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
-        }
-    }
-
-    private fun refreshAutoClickEditors() {
+        private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
