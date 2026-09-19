@@ -76,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         val thumbnailHost: FrameLayout,
         var webView: WebView,
         val avatarView: TextView,
+        val dragHandle: View,
         val clickLayer: FrameLayout,
         val titleView: TextView,
         val subtitleView: TextView,
@@ -132,10 +133,10 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         }
 
         val definitions = listOf(
-            PaneDefinition(R.id.pane_1, R.id.avatar_1, R.id.pane_title_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
-            PaneDefinition(R.id.pane_2, R.id.avatar_2, R.id.pane_title_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
-            PaneDefinition(R.id.pane_3, R.id.avatar_3, R.id.pane_title_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
-            PaneDefinition(R.id.pane_4, R.id.avatar_4, R.id.pane_title_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
+            PaneDefinition(R.id.pane_1, R.id.avatar_1, R.id.pane_title_1, R.id.pane_drag_handle_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
+            PaneDefinition(R.id.pane_2, R.id.avatar_2, R.id.pane_title_2, R.id.pane_drag_handle_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
+            PaneDefinition(R.id.pane_3, R.id.avatar_3, R.id.pane_title_3, R.id.pane_drag_handle_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
+            PaneDefinition(R.id.pane_4, R.id.avatar_4, R.id.pane_title_4, R.id.pane_drag_handle_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
         )
 
         definitions.forEachIndexed { index, definition ->
@@ -161,6 +162,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                   avatarView = findViewById(definition.avatarId),
                   clickLayer = clickLayer,
                   titleView = findViewById(definition.titleId),
+                dragHandle = findViewById(definition.dragHandleId),
                 subtitleView = findViewById(definition.subtitleId),
                 navigateButton = findViewById(definition.navigateButtonId),
                 reloadButton = findViewById(definition.reloadButtonId),
@@ -439,37 +441,41 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
 
     private fun configurePaneReordering(index: Int) {
         val pane = panes.getOrNull(index) ?: return
-        var startX = 0f
-        var startY = 0f
-        var dragging = false
-        pane.titleView.setOnTouchListener { view, event ->
-            if (fullscreenPaneIndex != null) return@setOnTouchListener false
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    startX = event.rawX
-                    startY = event.rawY
-                    dragging = false
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    if (!dragging && (abs(event.rawX - startX) > dp(12) || abs(event.rawY - startY) > dp(12))) dragging = true
-                    if (dragging) {
-                        val from = paneOrder.indexOf(index)
-                        val target = nearestPanePosition(event.rawX, event.rawY)
-                        if (from >= 0 && target >= 0 && from != target) swapPanePositions(from, target)
+
+        fun attachReorderTouch(targetView: View) {
+            var startX = 0f
+            var startY = 0f
+            var dragging = false
+            targetView.setOnTouchListener { touchedView, event ->
+                if (fullscreenPaneIndex != null) return@setOnTouchListener false
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        startX = event.rawX
+                        startY = event.rawY
+                        dragging = false
+                        true
                     }
-                    true
+                    MotionEvent.ACTION_MOVE -> {
+                        if (!dragging && (abs(event.rawX - startX) > dp(12) || abs(event.rawY - startY) > dp(12))) dragging = true
+                        if (dragging) {
+                            val from = paneOrder.indexOf(index)
+                            val target = nearestPanePosition(event.rawX, event.rawY)
+                            if (from >= 0 && target >= 0 && from != target) swapPanePositions(from, target)
+                        }
+                        true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        if (!dragging) touchedView.performClick()
+                        true
+                    }
+                    MotionEvent.ACTION_CANCEL -> true
+                    else -> false
                 }
-                MotionEvent.ACTION_UP -> {
-                    if (!dragging) view.performClick()
-                    true
-                }
-                MotionEvent.ACTION_CANCEL -> true
-                else -> false
             }
         }
-    }
 
+        listOf(pane.dragHandle, pane.titleView, pane.avatarView).forEach(::attachReorderTouch)
+    }
     private fun nearestPanePosition(rawX: Float, rawY: Float): Int {
         val location = IntArray(2)
         return paneOrder.indices.minByOrNull { position ->
@@ -1413,6 +1419,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         val paneId: Int,
         val avatarId: Int,
         val titleId: Int,
+        val dragHandleId: Int,
         val subtitleId: Int,
         val navigateButtonId: Int,
         val reloadButtonId: Int,
