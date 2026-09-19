@@ -99,7 +99,7 @@
     <string name="auto_clicker_delete_preset">Excluir preset</string>
     <string name="auto_clicker_delete_preset_title">Excluir preset</string>
     <string name="auto_clicker_delete_preset_message">Deseja apagar o preset "%1$s"?</string>
-    <string name="auto_clicker_no_custom_presets">Nenhum preset personalizado salvo.</string>
+    <string name="auto_clicker_no_presets">Nenhum preset disponível.</string>
     <string name="auto_clicker_preset_deleted">Preset apagado: %1$s</string>
     <string name="auto_clicker_preset_applied">Preset aplicado: %1$s</string>
 </resources>
