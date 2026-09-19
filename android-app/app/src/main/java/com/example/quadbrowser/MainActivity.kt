@@ -52,6 +52,7 @@ class MainActivity : AppCompatActivity() {
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
+        const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
     }
 
@@ -227,8 +228,22 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     private fun maybeChooseGoogleAccount(index: Int, rawUrl: String): Boolean {
         val pane = panes.getOrNull(index) ?: return false
         if (!isGoogleSignInUrl(rawUrl) || pane.selectedGoogleAccount != null) return false
+        if (pendingGoogleAccountRequest?.first == index) return true
 
         pendingGoogleAccountRequest = index to rawUrl
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.GET_ACCOUNTS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(
+                arrayOf(android.Manifest.permission.GET_ACCOUNTS),
+                GOOGLE_ACCOUNT_PERMISSION_REQUEST,
+            )
+            return true
+        }
+        return showGoogleAccountPicker()
+    }
+
+    private fun showGoogleAccountPicker(): Boolean {
         val chooser = AccountManager.newChooseAccountIntent(
             null,
             null,
@@ -252,8 +267,12 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         val uri = Uri.parse(rawUrl)
         val host = uri.host?.lowercase() ?: return false
         if (host != "accounts.google.com" && !host.endsWith(".accounts.google.com")) return false
-        return listOf("signin", "servicelogin", "accountchooser", "oauth", "identifier")
-            .any { rawUrl.contains(it, ignoreCase = true) }
+        val path = uri.path.orEmpty()
+        return path.contains("signin", ignoreCase = true) ||
+            path.contains("servicelogin", ignoreCase = true) ||
+            path.contains("accountchooser", ignoreCase = true) ||
+            rawUrl.contains("oauth", ignoreCase = true) ||
+            rawUrl.contains("identifier", ignoreCase = true)
     }
 
     private fun addGoogleAccountHint(rawUrl: String, accountName: String): String =
@@ -278,6 +297,19 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             """.trimIndent(),
             null,
         )
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != GOOGLE_ACCOUNT_PERMISSION_REQUEST) return
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            showGoogleAccountPicker()
+        } else {
+            val pending = pendingGoogleAccountRequest
+            pendingGoogleAccountRequest = null
+            pending?.let { panes.getOrNull(it.first)?.webView?.loadUrl(it.second) }
+            Toast.makeText(this, R.string.google_account_permission_denied, Toast.LENGTH_SHORT).show()
+        }
     }
 
     @Deprecated("Deprecated in Android API Activity")
@@ -860,6 +892,7 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 updatePaneIdentity(paneIndex, url, null)
                 persistPaneUrl(paneIndex, url)
+                maybeChooseGoogleAccount(paneIndex, url)
             }
 
             override fun onPageFinished(view: WebView, url: String) {

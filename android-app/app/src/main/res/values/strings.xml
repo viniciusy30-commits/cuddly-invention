@@ -64,4 +64,5 @@
     <string name="browser_background_message">Toque aqui para voltar. As instâncias continuam funcionando.</string>
     <string name="google_account_picker_description">Escolha a conta Google para esta instância</string>
     <string name="google_account_not_selected">Nenhuma conta Google foi escolhida.</string>
+    <string name="google_account_permission_denied">Permissão para acessar as contas Google não concedida.</string>
         </resources>
