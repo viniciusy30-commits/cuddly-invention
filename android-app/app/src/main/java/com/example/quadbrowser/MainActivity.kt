@@ -1,5 +1,6 @@
 package com.example.quadbrowser
 
+import android.accounts.AccountManager
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Handler
@@ -47,6 +48,7 @@ class MainActivity : AppCompatActivity() {
         const val PANE_OPEN_PREFIX = "pane_open_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
+        const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
     }
 
     private data class ClickPoint(var x: Float, var y: Float, var intervalMs: Long = 1000L)
@@ -76,12 +78,14 @@ class MainActivity : AppCompatActivity() {
         var autoClickIndex: Int = 0,
         var isAutoClickEditing: Boolean = false,
         var isAutoClicking: Boolean = false,
+        var selectedGoogleAccount: String? = null,
         var editorPlayPauseButton: TextView? = null,
     )
 
     private val panes = mutableListOf<BrowserPane>()
     private lateinit var fullscreenOverlay: FrameLayout
     private var fullscreenPaneIndex: Int? = null
+    private var pendingGoogleAccountRequest: Pair<Int, String>? = null
     private var isDarkTheme = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
 
@@ -212,6 +216,81 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
         }
         dialog.show()
+    }
+
+    private fun maybeChooseGoogleAccount(index: Int, rawUrl: String): Boolean {
+        val pane = panes.getOrNull(index) ?: return false
+        if (!isGoogleSignInUrl(rawUrl) || pane.selectedGoogleAccount != null) return false
+
+        pendingGoogleAccountRequest = index to rawUrl
+        val chooser = AccountManager.newChooseAccountIntent(
+            null,
+            null,
+            arrayOf("com.google"),
+            true,
+            getString(R.string.google_account_picker_description),
+            null,
+            null,
+            null,
+        )
+        return runCatching {
+            startActivityForResult(chooser, GOOGLE_ACCOUNT_PICKER_REQUEST)
+            true
+        }.getOrElse {
+            pendingGoogleAccountRequest = null
+            false
+        }
+    }
+
+    private fun isGoogleSignInUrl(rawUrl: String): Boolean {
+        val uri = Uri.parse(rawUrl)
+        val host = uri.host?.lowercase() ?: return false
+        if (host != "accounts.google.com" && !host.endsWith(".accounts.google.com")) return false
+        return listOf("signin", "servicelogin", "accountchooser", "oauth", "identifier")
+            .any { rawUrl.contains(it, ignoreCase = true) }
+    }
+
+    private fun addGoogleAccountHint(rawUrl: String, accountName: String): String =
+        Uri.parse(rawUrl).buildUpon()
+            .appendQueryParameter("Email", accountName)
+            .appendQueryParameter("login_hint", accountName)
+            .build()
+            .toString()
+
+    private fun prefillGoogleAccount(webView: WebView, accountName: String) {
+        val escapedAccount = org.json.JSONObject.quote(accountName)
+        webView.evaluateJavascript(
+            """
+            (() => {
+              const input = document.querySelector('input[type="email"], input[name="identifier"]');
+              if (!input) return;
+              const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+              if (setter) setter.call(input, $escapedAccount); else input.value = $escapedAccount;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+            })();
+            """.trimIndent(),
+            null,
+        )
+    }
+
+    @Deprecated("Deprecated in Android API Activity")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != GOOGLE_ACCOUNT_PICKER_REQUEST) return
+
+        val pending = pendingGoogleAccountRequest ?: return
+        pendingGoogleAccountRequest = null
+        val pane = panes.getOrNull(pending.first) ?: return
+        val accountName = data?.getStringExtra(AccountManager.KEY_ACCOUNT_NAME)
+        if (accountName.isNullOrBlank()) {
+            Toast.makeText(this, R.string.google_account_not_selected, Toast.LENGTH_SHORT).show()
+            pane.selectedGoogleAccount = "picker_cancelled"
+            pane.webView.loadUrl(pending.second)
+            return
+        }
+        pane.selectedGoogleAccount = accountName
+        pane.webView.loadUrl(addGoogleAccountHint(pending.second, accountName))
     }
 
     private fun toggleFullscreen(index: Int) {
@@ -760,12 +839,18 @@ panel.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT
             override fun onPageFinished(view: WebView, url: String) {
                 updatePaneIdentity(paneIndex, url, view.title)
                 persistPaneUrl(paneIndex, url)
+                panes.getOrNull(paneIndex)?.selectedGoogleAccount
+                    ?.takeUnless { it == "picker_cancelled" }
+                    ?.takeIf { isGoogleSignInUrl(url) }
+                    ?.let { prefillGoogleAccount(view, it) }
             }
 
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean = false
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                maybeChooseGoogleAccount(paneIndex, request.url.toString())
 
             @Suppress("DEPRECATION")
-            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean = false
+            override fun shouldOverrideUrlLoading(view: WebView, url: String): Boolean =
+                maybeChooseGoogleAccount(paneIndex, url)
 
             @Suppress("OVERRIDE_DEPRECATION")
             override fun onRenderProcessGone(view: WebView, detail: RenderProcessGoneDetail): Boolean {
