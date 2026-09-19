@@ -670,16 +670,6 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-        val browserContent = findViewById<View>(R.id.browser_content)
-        val grid = findViewById<GridLayout>(R.id.browser_grid)
-        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
-        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
-
-        // The child is intentionally laid out at the full browser viewport so
-        // responsive pages and canvas/WebGL apps render the same screen as in
-        // fullscreen. Only the final drawing is scaled into each grid cell.
-        grid.clipChildren = false
-        grid.clipToPadding = false
         panes.forEach { pane ->
             if (pane.container.parent !== pane.thumbnailHost) return@forEach
 
@@ -687,22 +677,29 @@ grid.visibility = View.VISIBLE
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-            pane.thumbnailHost.clipChildren = false
-            pane.thumbnailHost.clipToPadding = false
-            val scale = minOf(
-                hostWidth.toFloat() / targetWidth,
-                hostHeight.toFloat() / targetHeight,
-            )
+            // Keep the WebView inside the real cell bounds. A full-screen child
+            // placed in the lower row can extend past the Android viewport and
+            // cause its compositor/canvas to render only part of the page.
             val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
-            if (currentParams?.width != targetWidth || currentParams.height != targetHeight) {
-                pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
+            if (currentParams?.width != ViewGroup.LayoutParams.MATCH_PARENT ||
+                currentParams.height != ViewGroup.LayoutParams.MATCH_PARENT
+            ) {
+                pane.container.layoutParams = FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                )
             }
+            pane.thumbnailHost.clipChildren = true
+            pane.thumbnailHost.clipToPadding = true
             pane.container.pivotX = 0f
             pane.container.pivotY = 0f
-            pane.container.scaleX = scale
-            pane.container.scaleY = scale
-            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
-            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
+            pane.container.scaleX = 1f
+            pane.container.scaleY = 1f
+            pane.container.translationX = 0f
+            pane.container.translationY = 0f
+            pane.webView.settings.loadWithOverviewMode = true
+            pane.webView.settings.useWideViewPort = true
+            pane.webView.setInitialScale(0)
 
             pane.webView.post {
                 pane.webView.requestLayout()
