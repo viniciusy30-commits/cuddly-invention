@@ -152,7 +152,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               }
               grid.removeView(container)
               grid.addView(thumbnailHost, index, paneLayoutParams(index))
-              thumbnailHost.addView(container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+              thumbnailHost.addView(container, FrameLayout.LayoutParams(1, 1))
               val webView = findViewById<WebView>(definition.webViewId)
               val clickLayer = FrameLayout(this).apply {
                   visibility = View.GONE
@@ -667,29 +667,29 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
+        val browserContent = findViewById<View>(R.id.browser_content)
+        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
+        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
+
         panes.forEach { pane ->
             if (pane.container.parent !== pane.thumbnailHost) return@forEach
             val hostWidth = pane.thumbnailHost.width
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-            // Keep every pane exactly as large as its measured grid cell. This
-            // avoids the lower row retaining a stale or undersized WebView.
-            val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
-            if (currentParams?.width != ViewGroup.LayoutParams.MATCH_PARENT ||
-                currentParams.height != ViewGroup.LayoutParams.MATCH_PARENT
-            ) {
-                pane.container.layoutParams = FrameLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
-            }
+            // Keep the WebView at the full browser-content size and scale it into
+            // the small cell so every minimized instance shows the complete page.
+            val scale = minOf(
+                hostWidth.toFloat() / targetWidth,
+                hostHeight.toFloat() / targetHeight,
+            )
+            pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
             pane.container.pivotX = 0f
             pane.container.pivotY = 0f
-            pane.container.scaleX = 1f
-            pane.container.scaleY = 1f
-            pane.container.translationX = 0f
-            pane.container.translationY = 0f
+            pane.container.scaleX = scale
+            pane.container.scaleY = scale
+            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
+            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
         }
     }
 
