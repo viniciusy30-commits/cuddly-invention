@@ -105,6 +105,7 @@ class MainActivity : AppCompatActivity() {
         var isAutoClicking: Boolean = false,
         var selectedGoogleAccount: String? = null,
         var editorPlayPauseButton: TextView? = null,
+        var gridScalePercent: Int? = null,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -612,6 +613,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     private fun enterFullscreenPane(index: Int) {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val pane = panes[index]
+        applyWebViewViewportScale(pane, null)
         findViewById<View>(R.id.app_toolbar).visibility = View.GONE
         if (pane.container.parent !== fullscreenOverlay) {
             (pane.container.parent as? ViewGroup)?.removeView(pane.container)
@@ -669,7 +671,29 @@ grid.visibility = View.VISIBLE
         grid.post { refreshGridPaneThumbnails() }
     }
 
+    private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
+        if (pane.gridScalePercent == gridScalePercent) return
+        pane.gridScalePercent = gridScalePercent
+        pane.webView.settings.useWideViewPort = true
+        if (gridScalePercent == null) {
+            pane.webView.settings.loadWithOverviewMode = true
+            pane.webView.setInitialScale(0)
+        } else {
+            // Keep the WebView measured inside its cell, but make the page use
+            // the same wide viewport that it gets in fullscreen. This avoids
+            // mobile reflow while preventing lower-row compositor clipping.
+            pane.webView.settings.loadWithOverviewMode = false
+            pane.webView.setInitialScale(gridScalePercent)
+        }
+        val currentUrl = pane.webView.url
+        if (pane.isOpen && !currentUrl.isNullOrBlank() && currentUrl != "about:blank") {
+            pane.webView.post { pane.webView.reload() }
+        }
+    }
+
     private fun refreshGridPaneThumbnails() {
+        val browserContent = findViewById<View>(R.id.browser_content)
+        val fullViewportWidth = browserContent.width.coerceAtLeast(1)
         panes.forEach { pane ->
             if (pane.container.parent !== pane.thumbnailHost) return@forEach
 
@@ -677,9 +701,9 @@ grid.visibility = View.VISIBLE
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-            // Keep the WebView inside the real cell bounds. A full-screen child
-            // placed in the lower row can extend past the Android viewport and
-            // cause its compositor/canvas to render only part of the page.
+            // Keep the physical WebView inside the real cell. The page itself
+            // is zoomed to the full viewport width, so the same game screen is
+            // visible in every row without pushing the WebView off-screen.
             val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
             if (currentParams?.width != ViewGroup.LayoutParams.MATCH_PARENT ||
                 currentParams.height != ViewGroup.LayoutParams.MATCH_PARENT
@@ -697,10 +721,11 @@ grid.visibility = View.VISIBLE
             pane.container.scaleY = 1f
             pane.container.translationX = 0f
             pane.container.translationY = 0f
-            pane.webView.settings.loadWithOverviewMode = true
-            pane.webView.settings.useWideViewPort = true
-            pane.webView.setInitialScale(0)
 
+            val scalePercent = (hostWidth.toFloat() / fullViewportWidth * 100f)
+                .let { kotlin.math.round(it).toInt() }
+                .coerceIn(20, 100)
+            applyWebViewViewportScale(pane, scalePercent)
             pane.webView.post {
                 pane.webView.requestLayout()
                 pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
