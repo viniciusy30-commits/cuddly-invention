@@ -692,8 +692,11 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-        val browserContent = findViewById<View>(R.id.browser_content)
-        val fullViewportWidth = browserContent.width.coerceAtLeast(1)
+        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val fullViewportWidth = grid.width
+        val fullViewportHeight = grid.height
+        if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
+
         panes.forEach { pane ->
             if (pane.container.parent !== pane.thumbnailHost) return@forEach
 
@@ -701,9 +704,12 @@ grid.visibility = View.VISIBLE
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-            // Keep the physical WebView inside the real cell. The page itself
-            // is zoomed to the full viewport width, so the same game screen is
-            // visible in every row without pushing the WebView off-screen.
+            // Keep the physical WebView inside the real cell. The page is
+            // rendered at the same viewport as fullscreen and then scaled down
+            // to fit both dimensions of the cell. Using only the width here
+            // leaves the bottom row a few pixels too tall on devices where the
+            // toolbar, status bar, or navigation bar changes the available
+            // height, which causes WebView's compositor to clip the lower part.
             val currentParams = pane.container.layoutParams as? FrameLayout.LayoutParams
             if (currentParams?.width != ViewGroup.LayoutParams.MATCH_PARENT ||
                 currentParams.height != ViewGroup.LayoutParams.MATCH_PARENT
@@ -722,9 +728,13 @@ grid.visibility = View.VISIBLE
             pane.container.translationX = 0f
             pane.container.translationY = 0f
 
-            val scalePercent = (hostWidth.toFloat() / fullViewportWidth * 100f)
-                .let { kotlin.math.round(it).toInt() }
-                .coerceIn(20, 100)
+            val widthScale = hostWidth.toFloat() / fullViewportWidth.toFloat()
+            val heightScale = hostHeight.toFloat() / fullViewportHeight.toFloat()
+            // Floor instead of round so the scaled page never exceeds either
+            // edge of its host by a fractional pixel.
+            val scalePercent = (minOf(widthScale, heightScale) * 100f)
+                .toInt()
+                .coerceIn(10, 100)
             applyWebViewViewportScale(pane, scalePercent)
             pane.webView.post {
                 pane.webView.requestLayout()
