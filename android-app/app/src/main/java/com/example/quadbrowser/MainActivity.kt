@@ -26,6 +26,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.webkit.CookieManager
+import android.webkit.WebStorage
 import android.text.InputType
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -359,6 +360,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         findViewById<Button>(R.id.global_pause).setOnClickListener { pauseAllPanes() }
         findViewById<Button>(R.id.global_resume).setOnClickListener { resumeAllPanes() }
         findViewById<Button>(R.id.global_close).setOnClickListener { closeAllPanes() }
+        findViewById<Button>(R.id.global_clear_data).setOnClickListener { showClearDataDialog() }
         findViewById<Button>(R.id.global_auto_click).setOnClickListener { toggleAutoClickerAll() }
     }
 
@@ -426,7 +428,39 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         Toast.makeText(this, R.string.global_closed, Toast.LENGTH_SHORT).show()
     }
 
-    private fun toggleAutoClickerAll() {
+    private fun showClearDataDialog() {
+          AlertDialog.Builder(this)
+              .setTitle(R.string.clear_data_title)
+              .setMessage(R.string.clear_data_message)
+              .setNegativeButton(R.string.cancel, null)
+              .setPositiveButton(R.string.clear_data_confirm) { _, _ -> clearAllInstanceData() }
+              .show()
+      }
+
+      private fun clearAllInstanceData() {
+          panes.forEach { pane ->
+              pane.webView.stopLoading()
+              pane.webView.clearHistory()
+              pane.webView.clearCache(true)
+              pane.webView.clearFormData()
+              pane.webView.clearSslPreferences()
+          }
+          WebStorage.getInstance().deleteAllData()
+          CookieManager.getInstance().removeAllCookies {
+              CookieManager.getInstance().flush()
+              runOnUiThread {
+                  panes.forEach { pane ->
+                      val url = pane.webView.url ?: pane.lastUrl
+                      if (pane.isOpen && !url.isNullOrBlank() && url != "about:blank") {
+                          pane.webView.loadUrl(url)
+                      }
+                  }
+                  Toast.makeText(this, R.string.clear_data_done, Toast.LENGTH_SHORT).show()
+              }
+          }
+      }
+
+        private fun toggleAutoClickerAll() {
         if (panes.any { it.isAutoClicking }) {
             panes.indices.forEach { stopAutoClicker(it, notify = false) }
             Toast.makeText(this, R.string.global_auto_click_stopped, Toast.LENGTH_SHORT).show()

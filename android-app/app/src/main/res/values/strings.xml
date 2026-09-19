@@ -102,4 +102,9 @@
     <string name="auto_clicker_no_presets">Nenhum preset disponível.</string>
     <string name="auto_clicker_preset_deleted">Preset apagado: %1$s</string>
     <string name="auto_clicker_preset_applied">Preset aplicado: %1$s</string>
-</resources>
+    <string name="global_clear_data">Limpar dados</string>
+      <string name="clear_data_title">Limpar dados das instâncias</string>
+      <string name="clear_data_message">Isso apagará cookies, histórico, cache, armazenamento local e dados de formulário das quatro instâncias.</string>
+      <string name="clear_data_confirm">Limpar</string>
+      <string name="clear_data_done">Cookies, histórico e dados das instâncias foram apagados.</string>
+    </resources>
