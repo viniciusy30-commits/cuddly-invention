@@ -199,10 +199,8 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               }
             pane.fullscreenButton.setOnClickListener { toggleFullscreen(index) }
              pane.autoClickButton.setOnClickListener {
-                if (pane.isAutoClicking) {
-                    stopAutoClicker(index, notify = true)
-                } else if (pane.isAutoClickEditing) {
-                    startAutoClicker(index)
+                if (pane.isAutoClickEditing) {
+                    hideAutoClickerEditor(index, stop = false)
                 } else {
                     beginAutoClickerEditor(index)
                 }
@@ -619,7 +617,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
 
     private fun setPaneOpen(index: Int, open: Boolean) {
         val pane = panes.getOrNull(index) ?: return
-        if (!open) stopAutoClicker(index)
         pane.isOpen = open
         if (!open && fullscreenPaneIndex == index) fullscreenPaneIndex = null
         if (open) {
@@ -699,7 +696,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val pane = panes[index]
         findViewById<View>(R.id.app_toolbar).visibility = View.GONE
-        findViewById<View>(R.id.global_controls_scroll).visibility = View.GONE
         if (pane.container.parent !== fullscreenOverlay) {
             (pane.container.parent as? ViewGroup)?.removeView(pane.container)
             pane.container.scaleX = 1f
@@ -729,7 +725,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         }
         fullscreenOverlay.visibility = View.GONE
         findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
-        findViewById<View>(R.id.global_controls_scroll).visibility = View.VISIBLE
 grid.visibility = View.VISIBLE
         applyGridPaneOrder()
         panes.forEachIndexed { index, pane ->
@@ -804,23 +799,11 @@ grid.visibility = View.VISIBLE
 
     private fun setPaneActionState(index: Int) {
         val pane = panes.getOrNull(index) ?: return
-        pane.autoClickButton.setImageResource(
-            when {
-                pane.isAutoClicking -> R.drawable.ic_pause
-                pane.isAutoClickEditing -> R.drawable.ic_play
-                else -> R.drawable.ic_auto_click
-            },
-        )
+        pane.autoClickButton.setImageResource(R.drawable.ic_auto_click)
         pane.autoClickButton.setBackgroundResource(if (pane.isAutoClicking) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
         pane.autoClickButton.setColorFilter(getColor(if (pane.isAutoClicking) R.color.danger else R.color.text_primary))
-        pane.autoClickButton.contentDescription = getString(
-            when {
-                pane.isAutoClicking -> R.string.auto_clicker_pause
-                pane.isAutoClickEditing -> R.string.auto_clicker_play
-                else -> R.string.open_auto_clicker
-            },
-        )
-        pane.autoClickButton.visibility = if (pane.isOpen && fullscreenPaneIndex == index) View.VISIBLE else View.GONE
+        pane.autoClickButton.contentDescription = getString(if (pane.isAutoClicking) R.string.stop_auto_clicker else R.string.open_auto_clicker)
+        pane.autoClickButton.visibility = if (pane.isOpen) View.VISIBLE else View.GONE
         pane.editorPlayPauseButton?.apply {
             text = if (pane.isAutoClicking) "Ⅱ" else "▶"
             contentDescription = getString(if (pane.isAutoClicking) R.string.auto_clicker_pause else R.string.auto_clicker_play)
@@ -1094,13 +1077,13 @@ grid.visibility = View.VISIBLE
           val layerHeight = layer.height.coerceAtLeast(1).toFloat()
           layer.visibility = View.VISIBLE
           layer.removeAllViews()
-            val markerSize = dp(24)
+           val markerSize = dp(28)
           pane.autoClickPoints.forEachIndexed { pointIndex, point ->
               val marker = TextView(this).apply {
                   text = (pointIndex + 1).toString() + "\n" + formatInterval(point.intervalMs)
                   gravity = Gravity.CENTER
                   setTextColor(getColor(R.color.text_primary))
-                    setTextSize(8f)
+                   setTextSize(9f)
                    includeFontPadding = false
                    setBackgroundResource(R.drawable.bg_auto_click_marker)
                   elevation = dp(3).toFloat()
