@@ -706,7 +706,7 @@ grid.visibility = View.VISIBLE
     ).apply {
           width = 0
           height = 0
-          gravity = Gravity.FILL
+          setGravity(Gravity.FILL)
           setMargins(7, 7, 7, 7)
       }
 
