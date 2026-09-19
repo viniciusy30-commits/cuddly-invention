@@ -712,9 +712,6 @@ grid.visibility = View.VISIBLE
         }
     }
 
-
-    }
-
     private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
