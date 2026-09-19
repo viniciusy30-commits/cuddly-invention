@@ -382,8 +382,11 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             .setView(input)
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.go) { _, _ ->
-                panes.forEach { pane -> if (pane.isOpen) loadInput(pane.webView, input.text.toString()) }
-            }
+                    panes.forEachIndexed { index, pane ->
+                        if (!pane.isOpen) setPaneOpen(index, true)
+                        loadInput(pane.webView, input.text.toString())
+                    }
+                }
             .show()
     }
 
