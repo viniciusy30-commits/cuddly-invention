@@ -620,7 +620,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     private fun enterFullscreenPane(index: Int) {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val pane = panes[index]
-        resetWebViewViewportScale(pane)
+        applyWebViewViewportScale(pane, null)
         findViewById<View>(R.id.app_toolbar).visibility = View.GONE
         if (pane.container.parent !== fullscreenOverlay) {
             (pane.container.parent as? ViewGroup)?.removeView(pane.container)
@@ -678,109 +678,26 @@ grid.visibility = View.VISIBLE
         grid.post { refreshGridPaneThumbnails() }
     }
 
-    private fun resetWebViewViewportScale(pane: BrowserPane) {
-        pane.gridScalePercent = null
-        pane.gridTransformApplied = false
-        pane.gridReferenceWidth = 0
-        pane.gridReferenceHeight = 0
-        pane.gridHostWidth = 0
-        pane.gridHostHeight = 0
-        pane.gridScale = 0f
-        val webView = pane.webView
-        val host = webView.parent as? FrameLayout ?: return
-
-        webView.layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-        )
-        webView.pivotX = 0f
-        webView.pivotY = 0f
-        webView.scaleX = 1f
-        webView.scaleY = 1f
-        webView.translationX = 0f
-        webView.translationY = 0f
-
-        pane.clickLayer.layoutParams = FrameLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT,
-        )
-        pane.clickLayer.pivotX = 0f
-        pane.clickLayer.pivotY = 0f
-        pane.clickLayer.scaleX = 1f
-        pane.clickLayer.scaleY = 1f
-        pane.clickLayer.translationX = 0f
-        pane.clickLayer.translationY = 0f
-        host.clipChildren = true
-        host.clipToPadding = true
-
-        webView.settings.loadWithOverviewMode = true
-        webView.settings.useWideViewPort = true
-        webView.setInitialScale(0)
-        webView.requestLayout()
+    private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
+        if (pane.gridScalePercent == gridScalePercent) return
+        pane.gridScalePercent = gridScalePercent
+        pane.webView.settings.useWideViewPort = true
+        if (gridScalePercent == null) {
+            pane.webView.settings.loadWithOverviewMode = true
+            pane.webView.setInitialScale(0)
+        } else {
+            // Keep the WebView measured inside its cell and apply page scale
+            // internally, preserving the original Quad Browser appearance.
+            pane.webView.settings.loadWithOverviewMode = false
+            pane.webView.setInitialScale(gridScalePercent)
+        }
+        val currentUrl = pane.webView.url
+        if (pane.isOpen && !currentUrl.isNullOrBlank() && currentUrl != "about:blank") {
+            pane.webView.post { pane.webView.reload() }
+        }
     }
 
-    private fun applyGridWebViewTransform(
-          pane: BrowserPane,
-          referenceWidth: Int,
-          referenceHeight: Int,
-      ): Boolean {
-          val webView = pane.webView
-          val host = webView.parent as? FrameLayout ?: return false
-          val hostWidth = host.width
-          val hostHeight = host.height
-          if (hostWidth <= 0 || hostHeight <= 0 || referenceWidth <= 0 || referenceHeight <= 0) return false
-
-          val scale = minOf(
-              hostWidth.toFloat() / referenceWidth.toFloat(),
-              hostHeight.toFloat() / referenceHeight.toFloat(),
-          )
-          val scaledWidth = (referenceWidth * scale).toInt()
-          val scaledHeight = (referenceHeight * scale).toInt()
-          val currentLayoutParams = webView.layoutParams
-          val needsLayoutParams = currentLayoutParams.width != referenceWidth || currentLayoutParams.height != referenceHeight
-          val changed = !pane.gridTransformApplied ||
-              pane.gridReferenceWidth != referenceWidth ||
-              pane.gridReferenceHeight != referenceHeight ||
-              pane.gridHostWidth != hostWidth ||
-              pane.gridHostHeight != hostHeight ||
-              kotlin.math.abs(pane.gridScale - scale) > 0.0005f ||
-              needsLayoutParams
-          if (!changed) return false
-
-          pane.gridScalePercent = (scale * 100f).toInt().coerceIn(10, 100)
-          pane.gridReferenceWidth = referenceWidth
-          pane.gridReferenceHeight = referenceHeight
-          pane.gridHostWidth = hostWidth
-          pane.gridHostHeight = hostHeight
-          pane.gridScale = scale
-          pane.gridTransformApplied = true
-
-          host.clipChildren = true
-          host.clipToPadding = true
-          if (needsLayoutParams) {
-              webView.layoutParams = FrameLayout.LayoutParams(referenceWidth, referenceHeight)
-              pane.clickLayer.layoutParams = FrameLayout.LayoutParams(referenceWidth, referenceHeight)
-          }
-
-          val translationX = ((hostWidth - scaledWidth).coerceAtLeast(0) / 2f)
-          val translationY = ((hostHeight - scaledHeight).coerceAtLeast(0) / 2f)
-          webView.pivotX = 0f
-          webView.pivotY = 0f
-          webView.scaleX = scale
-          webView.scaleY = scale
-          webView.translationX = translationX
-          webView.translationY = translationY
-
-          pane.clickLayer.pivotX = 0f
-          pane.clickLayer.pivotY = 0f
-          pane.clickLayer.scaleX = scale
-          pane.clickLayer.scaleY = scale
-          pane.clickLayer.translationX = translationX
-          pane.clickLayer.translationY = translationY
-          return true
-      }
-
-          private fun equalizeGridCells(grid: GridLayout): Boolean {
+    private fun equalizeGridCells(grid: GridLayout): Boolean {
         val availableWidth = grid.width - grid.paddingLeft - grid.paddingRight
         val availableHeight = grid.height - grid.paddingTop - grid.paddingBottom
         if (availableWidth <= 0 || availableHeight <= 0) return false
@@ -815,40 +732,45 @@ grid.visibility = View.VISIBLE
     }
 
 private fun refreshGridPaneThumbnails() {
-          val grid = findViewById<GridLayout>(R.id.browser_grid)
-          if (equalizeGridCells(grid)) {
-              grid.post { refreshGridPaneThumbnails() }
-              return
-          }
-          val browserContent = findViewById<View>(R.id.browser_content)
-          val fullViewportWidth = browserContent.width - browserContent.paddingLeft - browserContent.paddingRight
-          val fullViewportHeight = browserContent.height - browserContent.paddingTop - browserContent.paddingBottom
-          if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
+        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        if (equalizeGridCells(grid)) {
+            grid.post { refreshGridPaneThumbnails() }
+            return
+        }
 
-          panes.forEach { pane ->
-              if (pane.container.parent !== pane.thumbnailHost) return@forEach
-              val webViewHost = pane.webView.parent as? FrameLayout ?: return@forEach
-              if (webViewHost.width <= 0 || webViewHost.height <= 0) return@forEach
+        val fullViewportWidth = grid.width
+        val fullViewportHeight = grid.height
+        if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
 
-              pane.container.pivotX = 0f
-              pane.container.pivotY = 0f
-              pane.container.scaleX = 1f
-              pane.container.scaleY = 1f
-              pane.container.translationX = 0f
-              pane.container.translationY = 0f
+        panes.forEach { pane ->
+            if (pane.container.parent !== pane.thumbnailHost) return@forEach
+            val hostWidth = pane.thumbnailHost.width
+            val hostHeight = pane.thumbnailHost.height
+            if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-              // Only update the native layout when a real size changes. This
-              // avoids the layout-listener redraw loop that caused flashing.
-              val changed = applyGridWebViewTransform(pane, fullViewportWidth, fullViewportHeight)
-              if (changed) {
-                  pane.webView.post {
-                      pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-                  }
-              }
-          }
-      }
+            pane.thumbnailHost.clipChildren = true
+            pane.thumbnailHost.clipToPadding = true
+            pane.container.pivotX = 0f
+            pane.container.pivotY = 0f
+            pane.container.scaleX = 1f
+            pane.container.scaleY = 1f
+            pane.container.translationX = 0f
+            pane.container.translationY = 0f
 
-                private fun refreshAutoClickEditors() {
+            val widthScale = hostWidth.toFloat() / fullViewportWidth.toFloat()
+            val heightScale = hostHeight.toFloat() / fullViewportHeight.toFloat()
+            val scalePercent = (minOf(widthScale, heightScale) * 100f)
+                .toInt()
+                .coerceIn(10, 100)
+            applyWebViewViewportScale(pane, scalePercent)
+            pane.webView.post {
+                pane.webView.requestLayout()
+                pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+            }
+        }
+    }
+
+    private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
