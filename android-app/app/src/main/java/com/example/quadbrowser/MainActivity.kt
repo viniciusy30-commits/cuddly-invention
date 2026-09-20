@@ -125,6 +125,7 @@ class MainActivity : AppCompatActivity() {
     private var isDarkTheme = false
     private var isActivityVisible = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
+    private var isRefreshingGridPaneThumbnails = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         isDarkTheme = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(DARK_THEME_KEY, false)
@@ -736,58 +737,83 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-          val browserContent = findViewById<View>(R.id.browser_content)
-          val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
-          val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
-          if (targetWidth <= 1 || targetHeight <= 1) return
+        if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
 
-          val readyPanes = panes.filter {
-              it.container.parent === it.thumbnailHost &&
-                  it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
-          }
-          if (readyPanes.isEmpty()) return
+        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+        val targetWidth = grid.width.coerceAtLeast(1)
+        val targetHeight = grid.height.coerceAtLeast(1)
+        if (targetWidth <= 1 || targetHeight <= 1) return
 
-          // Each cell displays the same full-screen page viewport. The pane itself
-          // is scaled as a complete surface; it is never reflowed to the cell width.
-          val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
-          val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
-          val scale = minOf(
-              cellWidth.toFloat() / targetWidth,
-              cellHeight.toFloat() / targetHeight,
-          ).coerceIn(0.1f, 1f)
+        val readyPanes = panes.filter {
+            it.container.parent === it.thumbnailHost &&
+                it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
+        }
+        if (readyPanes.isEmpty()) return
 
-          // The hosts are the visual viewport boundaries. Do not let an ancestor
-          // clip the untransformed bounds of a scaled WebView surface; that makes
-          // the same transform render differently in the second grid row.
-          grid.clipChildren = false
-          grid.clipToPadding = false
-          readyPanes.forEach { pane ->
-              val hostWidth = pane.thumbnailHost.width
-              val hostHeight = pane.thumbnailHost.height
-              pane.thumbnailHost.clipChildren = false
-              pane.thumbnailHost.clipToPadding = false
-              pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
-              pane.container.pivotX = 0f
-              pane.container.pivotY = 0f
-              pane.container.scaleX = scale
-              pane.container.scaleY = scale
-              pane.container.translationX = (hostWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
-              pane.container.translationY = (hostHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
-              pane.gridReferenceWidth = targetWidth
-              pane.gridReferenceHeight = targetHeight
-              pane.gridHostWidth = hostWidth
-              pane.gridHostHeight = hostHeight
-              pane.gridScale = scale
-              applyFullscreenWebViewViewport(pane)
-              pane.webView.post {
-                  pane.webView.requestLayout()
-                  pane.webView.invalidate()
-                  pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-              }
-          }
-          grid.invalidate()
-      }
+        val referenceCellWidth = readyPanes.minOf { it.thumbnailHost.width }
+        val referenceCellHeight = readyPanes.minOf { it.thumbnailHost.height }
+        val scale = minOf(
+            referenceCellWidth.toFloat() / targetWidth,
+            referenceCellHeight.toFloat() / targetHeight,
+        ).coerceIn(0.1f, 1f)
+
+        var layoutChanged = false
+        isRefreshingGridPaneThumbnails = true
+        try {
+            // The host is the cell viewport. The child keeps the same full-size
+            // surface in every row, then scales down uniformly into that cell.
+            // This prevents the second row from retaining a stale WebView measure.
+            grid.clipChildren = true
+            grid.clipToPadding = true
+            readyPanes.forEach { pane ->
+                val hostWidth = pane.thumbnailHost.width
+                val hostHeight = pane.thumbnailHost.height
+                pane.thumbnailHost.clipChildren = true
+                pane.thumbnailHost.clipToPadding = true
+
+                val existingParams = pane.container.layoutParams as? FrameLayout.LayoutParams
+                if (existingParams == null || existingParams.width != targetWidth || existingParams.height != targetHeight) {
+                    pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
+                    layoutChanged = true
+                }
+                pane.container.pivotX = 0f
+                pane.container.pivotY = 0f
+                val centeredX = (hostWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
+                val centeredY = (hostHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
+                if (abs(pane.container.scaleX - scale) > 0.001f || abs(pane.container.scaleY - scale) > 0.001f) {
+                    pane.container.scaleX = scale
+                    pane.container.scaleY = scale
+                    layoutChanged = true
+                }
+                if (abs(pane.container.translationX - centeredX) > 0.5f || abs(pane.container.translationY - centeredY) > 0.5f) {
+                    pane.container.translationX = centeredX
+                    pane.container.translationY = centeredY
+                    layoutChanged = true
+                }
+                pane.gridReferenceWidth = targetWidth
+                pane.gridReferenceHeight = targetHeight
+                pane.gridHostWidth = hostWidth
+                pane.gridHostHeight = hostHeight
+                pane.gridScale = scale
+                applyFullscreenWebViewViewport(pane)
+                pane.webView.post {
+                    pane.webView.requestLayout()
+                    pane.webView.invalidate()
+                    pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                }
+            }
+        } finally {
+            isRefreshingGridPaneThumbnails = false
+        }
+
+        if (layoutChanged) {
+            // requestLayout is required here; invalidate alone does not remeasure
+            // a reparented child, which is why lower-row WebViews could be stale.
+            grid.post {
+                if (!isRefreshingGridPaneThumbnails) grid.requestLayout()
+            }
+        }
+    }
 
         private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
