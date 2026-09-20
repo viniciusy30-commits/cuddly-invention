@@ -81,6 +81,19 @@
         <item name="android:scaleType">centerInside</item>
     </style>
 
+    <style name="PageTab">
+        <item name="android:layout_width">76dp</item>
+        <item name="android:layout_height">38dp</item>
+        <item name="android:background">@drawable/bg_icon_button</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:paddingStart">5dp</item>
+        <item name="android:paddingEnd">5dp</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">10sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
     <style name="BrowserWebView">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">match_parent</item>
