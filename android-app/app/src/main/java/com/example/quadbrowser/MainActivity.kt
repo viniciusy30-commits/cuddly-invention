@@ -743,6 +743,8 @@ grid.visibility = View.VISIBLE
           val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: grid.height).coerceAtLeast(1)
           if (targetWidth <= 1 || targetHeight <= 1) return
 
+          // Reserve the same physical cell for every position. The WebView keeps
+          // the fullscreen viewport; only this complete pane is scaled down.
           val marginPx = 7 * 2
           val cellWidth = ((grid.width - marginPx * 2) / 2).coerceAtLeast(1)
           val cellHeight = ((grid.height - marginPx * 2) / 2).coerceAtLeast(1)
@@ -750,7 +752,6 @@ grid.visibility = View.VISIBLE
               cellWidth.toFloat() / targetWidth,
               cellHeight.toFloat() / targetHeight,
           ).coerceIn(0.1f, 1f)
-          val scalePercent = (scale * 100f).toInt().coerceIn(10, 100)
 
           panes.forEach { pane ->
               if (pane.container.parent !== pane.thumbnailHost) return@forEach
@@ -772,22 +773,19 @@ grid.visibility = View.VISIBLE
 
               pane.thumbnailHost.clipChildren = true
               pane.thumbnailHost.clipToPadding = true
-              pane.container.layoutParams = FrameLayout.LayoutParams(
-                  ViewGroup.LayoutParams.MATCH_PARENT,
-                  ViewGroup.LayoutParams.MATCH_PARENT,
-              )
+              pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
               pane.container.pivotX = 0f
               pane.container.pivotY = 0f
-              pane.container.scaleX = 1f
-              pane.container.scaleY = 1f
-              pane.container.translationX = 0f
-              pane.container.translationY = 0f
+              pane.container.scaleX = scale
+              pane.container.scaleY = scale
+              pane.container.translationX = (cellWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
+              pane.container.translationY = (cellHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
               pane.gridReferenceWidth = targetWidth
               pane.gridReferenceHeight = targetHeight
               pane.gridHostWidth = cellWidth
               pane.gridHostHeight = cellHeight
               pane.gridScale = scale
-              applyWebViewViewportScale(pane, scalePercent)
+              applyFullscreenWebViewViewport(pane)
               pane.webView.post {
                   pane.webView.requestLayout()
                   pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
