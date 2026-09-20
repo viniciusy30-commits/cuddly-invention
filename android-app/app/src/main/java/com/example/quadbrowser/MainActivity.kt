@@ -727,8 +727,10 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-        val grid = findViewById<GridLayout>(R.id.browser_grid)
-        if (grid.width <= 0 || grid.height <= 0) return
+        val browserContent = findViewById<View>(R.id.browser_content)
+        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
+        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
+        if (targetWidth <= 1 || targetHeight <= 1) return
 
         panes.forEach { pane ->
             if (pane.container.parent !== pane.thumbnailHost) return@forEach
@@ -736,26 +738,27 @@ grid.visibility = View.VISIBLE
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
-            // A minimized pane must be laid out at its real cell size. Scaling a
-            // fullscreen viewport down keeps a desktop-sized CSS viewport and
-            // makes responsive pages render their PC layout.
+            // Use the same full browser viewport as fullscreen mode, then scale
+            // only the Android view into the grid cell. The page itself keeps
+            // the exact same layout and does not switch to a compact variant.
+            val scale = minOf(
+                hostWidth.toFloat() / targetWidth,
+                hostHeight.toFloat() / targetHeight,
+            )
             pane.thumbnailHost.clipChildren = true
             pane.thumbnailHost.clipToPadding = true
-            pane.container.layoutParams = FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            )
+            pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
             pane.container.pivotX = 0f
             pane.container.pivotY = 0f
-            pane.container.scaleX = 1f
-            pane.container.scaleY = 1f
-            pane.container.translationX = 0f
-            pane.container.translationY = 0f
-            pane.gridReferenceWidth = hostWidth
-            pane.gridReferenceHeight = hostHeight
+            pane.container.scaleX = scale
+            pane.container.scaleY = scale
+            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
+            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
+            pane.gridReferenceWidth = targetWidth
+            pane.gridReferenceHeight = targetHeight
             pane.gridHostWidth = hostWidth
             pane.gridHostHeight = hostHeight
-            applyCompactWebViewViewport(pane)
+            applyWebViewViewportScale(pane, null)
             pane.webView.post {
                 pane.webView.requestLayout()
                 pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
