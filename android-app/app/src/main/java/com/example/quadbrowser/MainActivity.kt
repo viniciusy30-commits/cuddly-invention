@@ -697,47 +697,8 @@ grid.visibility = View.VISIBLE
         }
     }
 
-    private fun equalizeGridCells(grid: GridLayout): Boolean {
-        val availableWidth = grid.width - grid.paddingLeft - grid.paddingRight
-        val availableHeight = grid.height - grid.paddingTop - grid.paddingBottom
-        if (availableWidth <= 0 || availableHeight <= 0) return false
-
-        // The grid is measured after the WebViews have been attached. Give every
-        // cell an explicit bound so a large WebView viewport cannot make the
-        // first row consume the space intended for the second row.
-        val cellMargin = 7
-        val cellWidth = ((availableWidth - cellMargin * 4) / 2).coerceAtLeast(1)
-        val cellHeight = ((availableHeight - cellMargin * 4) / 2).coerceAtLeast(1)
-        var changed = false
-
-        paneOrder.forEachIndexed { position, identity ->
-            val pane = panes.getOrNull(identity) ?: return@forEachIndexed
-            if (pane.thumbnailHost.parent !== grid) return@forEachIndexed
-            val current = pane.thumbnailHost.layoutParams as? GridLayout.LayoutParams
-            if (current?.width == cellWidth && current.height == cellHeight) return@forEachIndexed
-
-            pane.thumbnailHost.layoutParams = GridLayout.LayoutParams(
-                GridLayout.spec(position / 2),
-                GridLayout.spec(position % 2),
-            ).apply {
-                width = cellWidth
-                height = cellHeight
-                setGravity(Gravity.FILL)
-                setMargins(cellMargin, cellMargin, cellMargin, cellMargin)
-            }
-            changed = true
-        }
-        if (changed) grid.requestLayout()
-        return changed
-    }
-
-private fun refreshGridPaneThumbnails() {
+    private fun refreshGridPaneThumbnails() {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
-        if (equalizeGridCells(grid)) {
-            grid.post { refreshGridPaneThumbnails() }
-            return
-        }
-
         val fullViewportWidth = grid.width
         val fullViewportHeight = grid.height
         if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
