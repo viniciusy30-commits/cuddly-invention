@@ -35,6 +35,33 @@
                 android:text="@string/app_subtitle" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/page_tabs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/page_tab_1"
+                style="@style/PageTab"
+                android:text="@string/view_mode_page_1" />
+
+            <TextView
+                android:id="@+id/page_tab_2"
+                style="@style/PageTab"
+                android:layout_marginStart="4dp"
+                android:text="@string/view_mode_page_2" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/view_mode_toggle"
+            style="@style/ThemeButton"
+            android:contentDescription="@string/view_mode_switch_to_paged"
+            android:src="@drawable/ic_view_mode" />
+
         <ImageButton
             android:id="@+id/theme_toggle"
             style="@style/ThemeButton"
@@ -582,6 +609,14 @@
             </FrameLayout>
         </LinearLayout>
         </com.example.quadbrowser.EqualPaneGridLayout>
+
+        <com.example.quadbrowser.PagedInstancesLayout
+            android:id="@+id/browser_pager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/grid_background"
+            android:clipChildren="true"
+            android:visibility="gone" />
 
         <FrameLayout
             android:id="@+id/fullscreen_overlay"
