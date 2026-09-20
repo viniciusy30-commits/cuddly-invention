@@ -55,9 +55,8 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/grid_background"
-            android:columnCount="2"
-            android:rowCount="2"
-            android:useDefaultMargins="false">
+            android:clipChildren="true"
+            android:clipToPadding="true">
 
         <LinearLayout
             android:id="@+id/pane_1"
