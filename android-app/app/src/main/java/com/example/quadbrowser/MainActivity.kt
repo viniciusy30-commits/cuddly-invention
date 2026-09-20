@@ -621,7 +621,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     private fun enterFullscreenPane(index: Int) {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
         val pane = panes[index]
-        applyWebViewViewportScale(pane, null)
+        applyFullscreenWebViewViewport(pane)
         findViewById<View>(R.id.app_toolbar).visibility = View.GONE
         if (pane.container.parent !== fullscreenOverlay) {
             (pane.container.parent as? ViewGroup)?.removeView(pane.container)
@@ -704,6 +704,17 @@ grid.visibility = View.VISIBLE
         applyWebViewZoom(pane, 100)
     }
 
+    private fun applyFullscreenWebViewViewport(pane: BrowserPane) {
+        if (pane.gridTransformApplied && pane.gridScalePercent == null) return
+        pane.gridScalePercent = null
+        pane.gridTransformApplied = true
+        pane.webView.settings.useWideViewPort = true
+        pane.webView.settings.loadWithOverviewMode = true
+        pane.webView.setInitialScale(0)
+        restoreDefaultPageViewport(pane.webView)
+        applyWebViewZoom(pane, 100)
+    }
+
     private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
         if (pane.gridScalePercent == gridScalePercent &&
             (gridScalePercent == null || pane.gridReferenceWidth > 0) &&
@@ -732,19 +743,24 @@ grid.visibility = View.VISIBLE
         val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
         if (targetWidth <= 1 || targetHeight <= 1) return
 
-        panes.forEach { pane ->
-            if (pane.container.parent !== pane.thumbnailHost) return@forEach
+        val minimizedPanes = panes.filter { it.container.parent === it.thumbnailHost }
+        val readyPanes = minimizedPanes.filter {
+            it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
+        }
+        if (readyPanes.isEmpty()) return
+
+        // Use one scale for every cell. The smallest measured cell is the
+        // limiting size, so moving a pane to row two cannot change its page.
+        val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
+        val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
+        val scale = minOf(
+            cellWidth.toFloat() / targetWidth,
+            cellHeight.toFloat() / targetHeight,
+        )
+
+        readyPanes.forEach { pane ->
             val hostWidth = pane.thumbnailHost.width
             val hostHeight = pane.thumbnailHost.height
-            if (hostWidth <= 0 || hostHeight <= 0) return@forEach
-
-            // Use the same full browser viewport as fullscreen mode, then scale
-            // only the Android view into the grid cell. The page itself keeps
-            // the exact same layout and does not switch to a compact variant.
-            val scale = minOf(
-                hostWidth.toFloat() / targetWidth,
-                hostHeight.toFloat() / targetHeight,
-            )
             pane.thumbnailHost.clipChildren = true
             pane.thumbnailHost.clipToPadding = true
             pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
@@ -758,7 +774,7 @@ grid.visibility = View.VISIBLE
             pane.gridReferenceHeight = targetHeight
             pane.gridHostWidth = hostWidth
             pane.gridHostHeight = hostHeight
-            applyWebViewViewportScale(pane, null)
+            applyFullscreenWebViewViewport(pane)
             pane.webView.post {
                 pane.webView.requestLayout()
                 pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
