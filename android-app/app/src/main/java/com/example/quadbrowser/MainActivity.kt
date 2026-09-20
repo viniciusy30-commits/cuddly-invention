@@ -739,10 +739,16 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         private fun restoreDefaultPageViewport(view: WebView) {
         val script = """
             (function() {
+                var desktopWidth = 1280;
                 var meta = document.querySelector('meta[name="viewport"]');
-                if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1.0');
-                document.documentElement.style.minWidth = '';
-                if (document.body) document.body.style.minWidth = '';
+                if (!meta) {
+                    meta = document.createElement('meta');
+                    meta.name = 'viewport';
+                    document.head.appendChild(meta);
+                }
+                meta.setAttribute('content', 'width=' + desktopWidth + ', initial-scale=1.0');
+                document.documentElement.style.minWidth = desktopWidth + 'px';
+                if (document.body) document.body.style.minWidth = desktopWidth + 'px';
                 window.dispatchEvent(new Event('resize'));
             })();
         """.trimIndent()
@@ -1480,9 +1486,8 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         }
         webView.setBackgroundColor(getColor(R.color.pane_background))
         webView.webChromeClient = WebChromeClient()
-        webView.settings.userAgentString = webView.settings.userAgentString
-            ?.replace("; wv", "")
-            ?.replace(" Version/4.0", "")
+        webView.settings.userAgentString =
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         CookieManager.getInstance().flush()
         if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
             WebSettingsCompat.setForceDark(webView.settings, if (isDarkTheme) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF)
