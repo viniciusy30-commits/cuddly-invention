@@ -1386,11 +1386,35 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     }
 
     private fun updateThemeToggle(button: ImageButton) {
-        button.setImageResource(if (isDarkTheme) R.drawable.ic_sun else R.drawable.ic_moon)
-        button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
-    }
+            button.setImageResource(if (isDarkTheme) R.drawable.ic_sun else R.drawable.ic_moon)
+            button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
+        }
 
-    private fun applyGridPageViewport(view: WebView, paneIndex: Int) {
+        private fun toggleViewMode() {
+            isPagerMode = !isPagerMode
+            getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(VIEW_MODE_KEY, isPagerMode).apply()
+            applyPaneLayout()
+        }
+
+        private fun updateViewModeToggle(button: ImageButton) {
+            button.setImageResource(R.drawable.ic_view_mode)
+            button.contentDescription = getString(if (isPagerMode) R.string.view_mode_switch_to_grid else R.string.view_mode_switch_to_paged)
+            findViewById<View>(R.id.page_tabs).visibility = if (isPagerMode && fullscreenPaneIndex == null) View.VISIBLE else View.GONE
+            updatePageIndicator(instancePager.currentPage)
+        }
+
+        private fun updatePageIndicator(page: Int) {
+            val firstTab = findViewById<TextView>(R.id.page_tab_1)
+            val secondTab = findViewById<TextView>(R.id.page_tab_2)
+            firstTab.setText(R.string.view_mode_page_1)
+            secondTab.setText(R.string.view_mode_page_2)
+            firstTab.setBackgroundResource(if (page == 0) R.drawable.bg_theme_button else R.drawable.bg_icon_button)
+            secondTab.setBackgroundResource(if (page == 1) R.drawable.bg_theme_button else R.drawable.bg_icon_button)
+            firstTab.contentDescription = getString(R.string.view_mode_page_1)
+            secondTab.contentDescription = getString(R.string.view_mode_page_2)
+        }
+
+        private fun applyGridPageViewport(view: WebView, paneIndex: Int) {
         val pane = panes.getOrNull(paneIndex) ?: return
         val scalePercent = pane.gridScalePercent ?: return
         val targetWidth = pane.gridReferenceWidth
