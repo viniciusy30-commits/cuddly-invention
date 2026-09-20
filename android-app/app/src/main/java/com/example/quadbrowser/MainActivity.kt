@@ -149,6 +149,11 @@ class MainActivity : AppCompatActivity() {
             findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshGridPaneThumbnails()
         }
+findViewById<ImageButton>(R.id.view_mode_toggle).apply {
+            updateViewModeToggle(this)
+            setOnClickListener { toggleViewMode() }
+        }
+
 findViewById<ImageButton>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
             setOnClickListener { toggleTheme() }
