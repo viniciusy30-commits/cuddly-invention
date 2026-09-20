@@ -155,7 +155,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         )
 
         definitions.forEachIndexed { index, definition ->
-              val grid = findViewById<GridLayout>(R.id.browser_grid)
+              val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
               val container = findViewById<View>(definition.paneId)
               val thumbnailHost = FrameLayout(this).apply {
                   clipChildren = true
@@ -619,7 +619,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     }
 
     private fun enterFullscreenPane(index: Int) {
-        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
         val pane = panes[index]
         applyFullscreenWebViewViewport(pane)
         findViewById<View>(R.id.app_toolbar).visibility = View.GONE
@@ -643,7 +643,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     }
 
     private fun exitFullscreenPane() {
-        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
         val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
         if (selectedIndex >= 0) {
             val pane = panes[selectedIndex]
@@ -668,7 +668,7 @@ grid.visibility = View.VISIBLE
     }
 
     private fun applyGridPaneOrder() {
-        val grid = findViewById<GridLayout>(R.id.browser_grid)
+        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
         grid.removeAllViews()
         paneOrder.forEachIndexed { position, identity ->
             val pane = panes.getOrNull(identity) ?: return@forEachIndexed
@@ -738,39 +738,31 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-          val grid = findViewById<GridLayout>(R.id.browser_grid)
-          val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: grid.width).coerceAtLeast(1)
-          val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: grid.height).coerceAtLeast(1)
+          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          val browserContent = findViewById<View>(R.id.browser_content)
+          val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
+          val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
           if (targetWidth <= 1 || targetHeight <= 1) return
 
-          // Reserve the same physical cell for every position. The WebView keeps
-          // the fullscreen viewport; only this complete pane is scaled down.
-          val marginPx = 7 * 2
-          val cellWidth = ((grid.width - marginPx * 2) / 2).coerceAtLeast(1)
-          val cellHeight = ((grid.height - marginPx * 2) / 2).coerceAtLeast(1)
+          // Use the bounds measured by the deterministic grid instead of estimating
+          // cells from the parent width/height. This keeps both rows on the same
+          // physical viewport even when Android rounds a weighted layout.
+          val readyPanes = panes.filter {
+              it.container.parent === it.thumbnailHost &&
+                  it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
+          }
+          if (readyPanes.isEmpty()) return
+
+          val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
+          val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
           val scale = minOf(
               cellWidth.toFloat() / targetWidth,
               cellHeight.toFloat() / targetHeight,
           ).coerceIn(0.1f, 1f)
 
-          panes.forEach { pane ->
-              if (pane.container.parent !== pane.thumbnailHost) return@forEach
-
-              val paneIndex = panes.indexOf(pane)
-              val position = paneOrder.indexOf(paneIndex).takeIf { it >= 0 } ?: paneIndex
-              val currentParams = pane.thumbnailHost.layoutParams as? GridLayout.LayoutParams
-              if (currentParams?.width != cellWidth || currentParams.height != cellHeight) {
-                  pane.thumbnailHost.layoutParams = GridLayout.LayoutParams(
-                      GridLayout.spec(position / 2),
-                      GridLayout.spec(position % 2),
-                  ).apply {
-                      width = cellWidth
-                      height = cellHeight
-                      setGravity(Gravity.FILL)
-                      setMargins(7, 7, 7, 7)
-                  }
-              }
-
+          readyPanes.forEach { pane ->
+              val hostWidth = pane.thumbnailHost.width
+              val hostHeight = pane.thumbnailHost.height
               pane.thumbnailHost.clipChildren = true
               pane.thumbnailHost.clipToPadding = true
               pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
@@ -778,12 +770,12 @@ grid.visibility = View.VISIBLE
               pane.container.pivotY = 0f
               pane.container.scaleX = scale
               pane.container.scaleY = scale
-              pane.container.translationX = (cellWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
-              pane.container.translationY = (cellHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
+              pane.container.translationX = (hostWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
+              pane.container.translationY = (hostHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
               pane.gridReferenceWidth = targetWidth
               pane.gridReferenceHeight = targetHeight
-              pane.gridHostWidth = cellWidth
-              pane.gridHostHeight = cellHeight
+              pane.gridHostWidth = hostWidth
+              pane.gridHostHeight = hostHeight
               pane.gridScale = scale
               applyFullscreenWebViewViewport(pane)
               pane.webView.post {
@@ -794,7 +786,7 @@ grid.visibility = View.VISIBLE
           grid.requestLayout()
       }
 
-        private fun refreshAutoClickEditors() {
+            private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
