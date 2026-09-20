@@ -112,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         var gridHostWidth: Int = 0,
         var gridHostHeight: Int = 0,
         var gridScale: Float = 0f,
+        var webViewZoomPercent: Int = 100,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -693,9 +694,9 @@ grid.visibility = View.VISIBLE
     }
 
     private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
-        if (pane.gridScalePercent == gridScalePercent) return
-        val previousPercent = pane.gridScalePercent ?: 100
-        val nextPercent = gridScalePercent ?: 100
+        if (pane.gridScalePercent == gridScalePercent &&
+            (gridScalePercent == null || pane.gridReferenceWidth > 0)
+        ) return
         pane.gridScalePercent = gridScalePercent
         pane.webView.settings.useWideViewPort = true
         if (gridScalePercent == null) {
@@ -703,29 +704,21 @@ grid.visibility = View.VISIBLE
             pane.webView.setInitialScale(0)
             restoreDefaultPageViewport(pane.webView)
         } else {
-            // Keep the WebView inside its cell and apply the page scale without
-            // destroying the current page/session when the mode changes.
+            // Keep the exact fullscreen page viewport and only reduce its
+            // rendered zoom to fit the real grid cell.
             pane.webView.settings.loadWithOverviewMode = false
             pane.webView.setInitialScale(gridScalePercent)
             applyGridPageViewport(pane.webView, panes.indexOfFirst { it === pane })
         }
-
-        val currentUrl = pane.webView.url
-        if (pane.isOpen && !currentUrl.isNullOrBlank() && currentUrl != "about:blank" &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
-        ) {
-            val zoomFactor = (nextPercent.toFloat() / previousPercent.toFloat()).coerceIn(0.25f, 4f)
-            pane.webView.post {
-                pane.webView.zoomBy(zoomFactor)
-                pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-            }
-        }
+        applyWebViewZoom(pane, gridScalePercent ?: 100)
     }
 
     private fun refreshGridPaneThumbnails() {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
-        val fullViewportWidth = grid.width
-        val fullViewportHeight = grid.height
+        // The fullscreen overlay is the reference viewport. Using the normal
+        // grid height makes the page render too large, especially on row two.
+        val fullViewportWidth = fullscreenOverlay.width.takeIf { it > 0 } ?: grid.width
+        val fullViewportHeight = fullscreenOverlay.height.takeIf { it > 0 } ?: grid.height
         if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
 
         panes.forEach { pane ->
@@ -742,6 +735,10 @@ grid.visibility = View.VISIBLE
             pane.container.scaleY = 1f
             pane.container.translationX = 0f
             pane.container.translationY = 0f
+            pane.gridReferenceWidth = fullViewportWidth
+            pane.gridReferenceHeight = fullViewportHeight
+            pane.gridHostWidth = hostWidth
+            pane.gridHostHeight = hostHeight
 
             val widthScale = hostWidth.toFloat() / fullViewportWidth.toFloat()
             val heightScale = hostHeight.toFloat() / fullViewportHeight.toFloat()
@@ -1291,9 +1288,10 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     private fun applyGridPageViewport(view: WebView, paneIndex: Int) {
         val pane = panes.getOrNull(paneIndex) ?: return
         val scalePercent = pane.gridScalePercent ?: return
-        val targetWidth = ((view.width.coerceAtLeast(1) * 100f) / scalePercent)
-            .toInt()
-            .coerceAtLeast(360)
+        val targetWidth = pane.gridReferenceWidth
+            .takeIf { it > 0 }
+            ?: fullscreenOverlay.width.takeIf { it > 0 }
+            ?: ((view.width.coerceAtLeast(1) * 100f) / scalePercent).toInt().coerceAtLeast(360)
         val script = """
             (function() {
                 var targetWidth = $targetWidth;
@@ -1311,6 +1309,21 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         """.trimIndent()
         view.evaluateJavascript(script, null)
         view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
+    }
+
+    private fun applyWebViewZoom(pane: BrowserPane, targetPercent: Int) {
+        val target = targetPercent.coerceIn(10, 100)
+        val previous = pane.webViewZoomPercent.coerceIn(10, 100)
+        if (previous == target) return
+        pane.webViewZoomPercent = target
+        pane.webView.post {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                pane.webView.zoomBy(target.toFloat() / previous.toFloat())
+            } else {
+                pane.webView.setInitialScale(target)
+            }
+            pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+        }
     }
 
     private fun configureWebView(webView: WebView, profileName: String, paneIndex: Int) {
@@ -1343,6 +1356,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         webView.setOnLongClickListener { false }
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
+                panes.getOrNull(paneIndex)?.webViewZoomPercent = 100
                 updatePaneIdentity(paneIndex, url, null)
                 persistPaneUrl(paneIndex, url)
                 maybeChooseGoogleAccount(paneIndex, url)
@@ -1357,6 +1371,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                     ?.let { prefillGoogleAccount(view, it) }
                 view.post {
                     applyGridPageViewport(view, paneIndex)
+                    panes.getOrNull(paneIndex)?.let { applyWebViewZoom(it, it.gridScalePercent ?: 100) }
                     view.requestLayout()
                     view.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
                 }
