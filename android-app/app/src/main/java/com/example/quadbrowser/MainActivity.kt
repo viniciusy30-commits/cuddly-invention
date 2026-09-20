@@ -738,51 +738,65 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-        val browserContent = findViewById<View>(R.id.browser_content)
-        val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
-        val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
-        if (targetWidth <= 1 || targetHeight <= 1) return
+          val grid = findViewById<GridLayout>(R.id.browser_grid)
+          val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: grid.width).coerceAtLeast(1)
+          val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: grid.height).coerceAtLeast(1)
+          if (targetWidth <= 1 || targetHeight <= 1) return
 
-        val minimizedPanes = panes.filter { it.container.parent === it.thumbnailHost }
-        val readyPanes = minimizedPanes.filter {
-            it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
-        }
-        if (readyPanes.isEmpty()) return
+          val marginPx = 7 * 2
+          val cellWidth = ((grid.width - marginPx * 2) / 2).coerceAtLeast(1)
+          val cellHeight = ((grid.height - marginPx * 2) / 2).coerceAtLeast(1)
+          val scale = minOf(
+              cellWidth.toFloat() / targetWidth,
+              cellHeight.toFloat() / targetHeight,
+          ).coerceIn(0.1f, 1f)
+          val scalePercent = (scale * 100f).toInt().coerceIn(10, 100)
 
-        // Use one scale for every cell. The smallest measured cell is the
-        // limiting size, so moving a pane to row two cannot change its page.
-        val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
-        val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
-        val scale = minOf(
-            cellWidth.toFloat() / targetWidth,
-            cellHeight.toFloat() / targetHeight,
-        )
+          panes.forEach { pane ->
+              if (pane.container.parent !== pane.thumbnailHost) return@forEach
 
-        readyPanes.forEach { pane ->
-            val hostWidth = pane.thumbnailHost.width
-            val hostHeight = pane.thumbnailHost.height
-            pane.thumbnailHost.clipChildren = true
-            pane.thumbnailHost.clipToPadding = true
-            pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
-            pane.container.pivotX = 0f
-            pane.container.pivotY = 0f
-            pane.container.scaleX = scale
-            pane.container.scaleY = scale
-            pane.container.translationX = (hostWidth - targetWidth * scale) / 2f
-            pane.container.translationY = (hostHeight - targetHeight * scale) / 2f
-            pane.gridReferenceWidth = targetWidth
-            pane.gridReferenceHeight = targetHeight
-            pane.gridHostWidth = hostWidth
-            pane.gridHostHeight = hostHeight
-            applyFullscreenWebViewViewport(pane)
-            pane.webView.post {
-                pane.webView.requestLayout()
-                pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-            }
-        }
-    }
+              val paneIndex = panes.indexOf(pane)
+              val position = paneOrder.indexOf(paneIndex).takeIf { it >= 0 } ?: paneIndex
+              val currentParams = pane.thumbnailHost.layoutParams as? GridLayout.LayoutParams
+              if (currentParams?.width != cellWidth || currentParams.height != cellHeight) {
+                  pane.thumbnailHost.layoutParams = GridLayout.LayoutParams(
+                      GridLayout.spec(position / 2),
+                      GridLayout.spec(position % 2),
+                  ).apply {
+                      width = cellWidth
+                      height = cellHeight
+                      setGravity(Gravity.FILL)
+                      setMargins(7, 7, 7, 7)
+                  }
+              }
 
-    private fun refreshAutoClickEditors() {
+              pane.thumbnailHost.clipChildren = true
+              pane.thumbnailHost.clipToPadding = true
+              pane.container.layoutParams = FrameLayout.LayoutParams(
+                  ViewGroup.LayoutParams.MATCH_PARENT,
+                  ViewGroup.LayoutParams.MATCH_PARENT,
+              )
+              pane.container.pivotX = 0f
+              pane.container.pivotY = 0f
+              pane.container.scaleX = 1f
+              pane.container.scaleY = 1f
+              pane.container.translationX = 0f
+              pane.container.translationY = 0f
+              pane.gridReferenceWidth = targetWidth
+              pane.gridReferenceHeight = targetHeight
+              pane.gridHostWidth = cellWidth
+              pane.gridHostHeight = cellHeight
+              pane.gridScale = scale
+              applyWebViewViewportScale(pane, scalePercent)
+              pane.webView.post {
+                  pane.webView.requestLayout()
+                  pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+              }
+          }
+          grid.requestLayout()
+      }
+
+        private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
