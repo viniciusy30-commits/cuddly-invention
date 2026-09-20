@@ -113,6 +113,10 @@ class MainActivity : AppCompatActivity() {
         var gridHostHeight: Int = 0,
         var gridScale: Float = 0f,
         var webViewZoomPercent: Int = 100,
+        var touchScaleActive: Boolean = false,
+        var touchReferenceX: Float = 0f,
+        var touchReferenceY: Float = 0f,
+        var touchScale: Float = 1f,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -1387,6 +1391,44 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             WebSettingsCompat.setForceDark(webView.settings, if (isDarkTheme) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF)
         }
         webView.setOnLongClickListener { false }
+        webView.setOnTouchListener { _, event ->
+            val pane = panes.getOrNull(paneIndex)
+            if (pane == null) {
+                false
+            } else {
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        pane.touchScale = pane.gridScale.takeIf { it > 0f && it < 0.999f } ?: 1f
+                        pane.touchScaleActive = pane.touchScale < 0.999f
+                        pane.touchReferenceX = event.x
+                        pane.touchReferenceY = event.y
+                    }
+                    MotionEvent.ACTION_POINTER_DOWN -> {
+                        // Do not rewrite multi-touch gestures such as pinch zoom.
+                        pane.touchScaleActive = false
+                    }
+                    MotionEvent.ACTION_MOVE, MotionEvent.ACTION_UP -> {
+                        if (pane.touchScaleActive && event.pointerCount == 1) {
+                            // Android inverse-transforms touch coordinates into a
+                            // scaled child. Reduce the delta by the visual scale so
+                            // a finger moving 100px scrolls 100px on screen, not
+                            // 100px divided by the pane scale.
+                            event.setLocation(
+                                pane.touchReferenceX + (event.x - pane.touchReferenceX) * pane.touchScale,
+                                pane.touchReferenceY + (event.y - pane.touchReferenceY) * pane.touchScale,
+                            )
+                        }
+                        if (event.actionMasked == MotionEvent.ACTION_UP) {
+                            pane.touchScaleActive = false
+                        }
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        pane.touchScaleActive = false
+                    }
+                }
+                false
+            }
+        }
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: android.graphics.Bitmap?) {
                 panes.getOrNull(paneIndex)?.webViewZoomPercent = 100
