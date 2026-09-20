@@ -44,6 +44,7 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.webkit.WebSettingsCompat
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 import org.json.JSONArray
 import org.json.JSONObject
@@ -70,6 +71,7 @@ class MainActivity : AppCompatActivity() {
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
         const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
+        const val DESKTOP_VIEWPORT_WIDTH = 1280
     }
 
     private data class ClickPoint(var x: Float, var y: Float, var intervalMs: Long = 1000L)
@@ -739,7 +741,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         private fun restoreDefaultPageViewport(view: WebView) {
         val script = """
             (function() {
-                var desktopWidth = 1280;
+                var desktopWidth = $DESKTOP_VIEWPORT_WIDTH;
                 var meta = document.querySelector('meta[name="viewport"]');
                 if (!meta) {
                     meta = document.createElement('meta');
@@ -849,14 +851,19 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               isRefreshingGridPaneThumbnails = true
               try {
                   readyPanes.forEach { pane ->
-                      val hostWidth = pane.thumbnailHost.width.coerceAtLeast(1)
-                      val hostHeight = pane.thumbnailHost.height.coerceAtLeast(1)
-                      pane.gridReferenceWidth = hostWidth
-                      pane.gridReferenceHeight = hostHeight
+                      // Keep a real desktop canvas for the page, then scale that canvas
+                      // into the visible pane. The WebView must be measured at desktop width;
+                      // scaling only the drawing surface prevents responsive sites from seeing a
+                      // phone-sized viewport.
+                      val surfaceWidth = DESKTOP_VIEWPORT_WIDTH
+                      val surfaceScale = (hostWidth.toFloat() / surfaceWidth).coerceIn(0.1f, 1f)
+                      val surfaceHeight = (hostHeight.toFloat() / surfaceScale).roundToInt().coerceAtLeast(1)
+                      pane.gridReferenceWidth = surfaceWidth
+                      pane.gridReferenceHeight = surfaceHeight
                       pane.gridHostWidth = hostWidth
                       pane.gridHostHeight = hostHeight
-                      pane.gridScale = 1f
-                      pane.thumbnailHost.setSurfaceSize(hostWidth, hostHeight, 1f)
+                      pane.gridScale = surfaceScale
+                      pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale)
                       applyFullscreenWebViewViewport(pane)
                       pane.webView.post {
                           pane.webView.requestLayout()
