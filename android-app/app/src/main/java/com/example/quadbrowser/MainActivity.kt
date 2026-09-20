@@ -851,6 +851,8 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               isRefreshingGridPaneThumbnails = true
               try {
                   readyPanes.forEach { pane ->
+                      val hostWidth = pane.thumbnailHost.width.coerceAtLeast(1)
+                      val hostHeight = pane.thumbnailHost.height.coerceAtLeast(1)
                       // Keep a real desktop canvas for the page, then scale that canvas
                       // into the visible pane. The WebView must be measured at desktop width;
                       // scaling only the drawing surface prevents responsive sites from seeing a
