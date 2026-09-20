@@ -737,43 +737,59 @@ grid.visibility = View.VISIBLE
 
     private fun refreshGridPaneThumbnails() {
           val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          val browserContent = findViewById<View>(R.id.browser_content)
+          val targetWidth = (fullscreenOverlay.width.takeIf { it > 0 } ?: browserContent.width).coerceAtLeast(1)
+          val targetHeight = (fullscreenOverlay.height.takeIf { it > 0 } ?: browserContent.height).coerceAtLeast(1)
+          if (targetWidth <= 1 || targetHeight <= 1) return
+
           val readyPanes = panes.filter {
               it.container.parent === it.thumbnailHost &&
                   it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
           }
           if (readyPanes.isEmpty()) return
 
-          // A WebView does not reliably repaint a transformed full-screen surface
-          // when it lives in the second row. Give it the exact measured cell size
-          // instead of scaling a full-screen container into the cell.
+          // Each cell displays the same full-screen page viewport. The pane itself
+          // is scaled as a complete surface; it is never reflowed to the cell width.
+          val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
+          val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
+          val scale = minOf(
+              cellWidth.toFloat() / targetWidth,
+              cellHeight.toFloat() / targetHeight,
+          ).coerceIn(0.1f, 1f)
+
+          // The hosts are the visual viewport boundaries. Do not let an ancestor
+          // clip the untransformed bounds of a scaled WebView surface; that makes
+          // the same transform render differently in the second grid row.
+          grid.clipChildren = false
+          grid.clipToPadding = false
           readyPanes.forEach { pane ->
-              val cellWidth = pane.thumbnailHost.width
-              val cellHeight = pane.thumbnailHost.height
-              pane.thumbnailHost.clipChildren = true
-              pane.thumbnailHost.clipToPadding = true
-              pane.container.layoutParams = FrameLayout.LayoutParams(cellWidth, cellHeight)
+              val hostWidth = pane.thumbnailHost.width
+              val hostHeight = pane.thumbnailHost.height
+              pane.thumbnailHost.clipChildren = false
+              pane.thumbnailHost.clipToPadding = false
+              pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
               pane.container.pivotX = 0f
               pane.container.pivotY = 0f
-              pane.container.scaleX = 1f
-              pane.container.scaleY = 1f
-              pane.container.translationX = 0f
-              pane.container.translationY = 0f
-              pane.gridReferenceWidth = cellWidth
-              pane.gridReferenceHeight = cellHeight
-              pane.gridHostWidth = cellWidth
-              pane.gridHostHeight = cellHeight
-              pane.gridScale = 1f
-              applyCompactWebViewViewport(pane)
+              pane.container.scaleX = scale
+              pane.container.scaleY = scale
+              pane.container.translationX = (hostWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
+              pane.container.translationY = (hostHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
+              pane.gridReferenceWidth = targetWidth
+              pane.gridReferenceHeight = targetHeight
+              pane.gridHostWidth = hostWidth
+              pane.gridHostHeight = hostHeight
+              pane.gridScale = scale
+              applyFullscreenWebViewViewport(pane)
               pane.webView.post {
                   pane.webView.requestLayout()
                   pane.webView.invalidate()
                   pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
               }
           }
-          grid.requestLayout()
+          grid.invalidate()
       }
 
-            private fun refreshAutoClickEditors() {
+        private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
