@@ -27,21 +27,21 @@
     </style>
 
     <style name="PaneBadge" parent="TextAppearance.AppCompat.Caption">
-        <item name="android:layout_width">34dp</item>
-        <item name="android:layout_height">34dp</item>
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
         <item name="android:gravity">center</item>
         <item name="android:background">@drawable/bg_pane_badge</item>
         <item name="android:textColor">@android:color/white</item>
-        <item name="android:textSize">12sp</item>
+        <item name="android:textSize">9sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
     <style name="PaneTitle" parent="TextAppearance.AppCompat.Body1">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>
-        <item name="android:maxLines">2</item>
+        <item name="android:maxLines">1</item>
         <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">15sp</item>
+        <item name="android:textSize">10sp</item>
         <item name="android:textStyle">bold</item>
     </style>
 
@@ -50,17 +50,17 @@
         <item name="android:layout_height">wrap_content</item>
         <item name="android:layout_marginTop">2dp</item>
         <item name="android:textColor">@color/text_secondary</item>
-        <item name="android:textSize">11sp</item>
+        <item name="android:textSize">8sp</item>
     </style>
 
     <style name="IconButton" parent="Widget.AppCompat.ImageButton">
-        <item name="android:layout_width">40dp</item>
-        <item name="android:layout_height">40dp</item>
-        <item name="android:layout_marginStart">2dp</item>
+        <item name="android:layout_width">32dp</item>
+        <item name="android:layout_height">32dp</item>
+        <item name="android:layout_marginStart">1dp</item>
         <item name="android:background">@drawable/bg_icon_button</item>
         <item name="android:minWidth">0dp</item>
         <item name="android:minHeight">0dp</item>
-        <item name="android:padding">5dp</item>
+        <item name="android:padding">4dp</item>
         <item name="android:tint">@color/text_primary</item>
         <item name="android:scaleType">fitCenter</item>
     </style>
