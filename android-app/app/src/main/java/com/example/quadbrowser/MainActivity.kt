@@ -77,7 +77,7 @@ class MainActivity : AppCompatActivity() {
 
     private data class BrowserPane(
         val container: View,
-        val thumbnailHost: FrameLayout,
+        val thumbnailHost: PaneViewportLayout,
         var webView: WebView,
         val avatarView: TextView,
         val dragHandle: View,
@@ -158,10 +158,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         definitions.forEachIndexed { index, definition ->
               val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
               val container = findViewById<View>(definition.paneId)
-              val thumbnailHost = FrameLayout(this).apply {
-                  clipChildren = true
-                  clipToPadding = true
-              }
+              val thumbnailHost = PaneViewportLayout(this)
               grid.removeView(container)
               grid.addView(thumbnailHost, index, paneLayoutParams(index))
               thumbnailHost.addView(container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -760,41 +757,17 @@ grid.visibility = View.VISIBLE
         var layoutChanged = false
         isRefreshingGridPaneThumbnails = true
         try {
-            // The host is the cell viewport. The child keeps the same full-size
-            // surface in every row, then scales down uniformly into that cell.
-            // This prevents the second row from retaining a stale WebView measure.
             grid.clipChildren = true
             grid.clipToPadding = true
             readyPanes.forEach { pane ->
                 val hostWidth = pane.thumbnailHost.width
                 val hostHeight = pane.thumbnailHost.height
-                pane.thumbnailHost.clipChildren = true
-                pane.thumbnailHost.clipToPadding = true
-
-                val existingParams = pane.container.layoutParams as? FrameLayout.LayoutParams
-                if (existingParams == null || existingParams.width != targetWidth || existingParams.height != targetHeight) {
-                    pane.container.layoutParams = FrameLayout.LayoutParams(targetWidth, targetHeight)
-                    layoutChanged = true
-                }
-                pane.container.pivotX = 0f
-                pane.container.pivotY = 0f
-                val centeredX = (hostWidth - targetWidth * scale).coerceAtLeast(0f) / 2f
-                val centeredY = (hostHeight - targetHeight * scale).coerceAtLeast(0f) / 2f
-                if (abs(pane.container.scaleX - scale) > 0.001f || abs(pane.container.scaleY - scale) > 0.001f) {
-                    pane.container.scaleX = scale
-                    pane.container.scaleY = scale
-                    layoutChanged = true
-                }
-                if (abs(pane.container.translationX - centeredX) > 0.5f || abs(pane.container.translationY - centeredY) > 0.5f) {
-                    pane.container.translationX = centeredX
-                    pane.container.translationY = centeredY
-                    layoutChanged = true
-                }
                 pane.gridReferenceWidth = targetWidth
                 pane.gridReferenceHeight = targetHeight
                 pane.gridHostWidth = hostWidth
                 pane.gridHostHeight = hostHeight
                 pane.gridScale = scale
+                layoutChanged = pane.thumbnailHost.setSurfaceSize(targetWidth, targetHeight, scale) || layoutChanged
                 applyFullscreenWebViewViewport(pane)
                 pane.webView.post {
                     pane.webView.requestLayout()
@@ -807,8 +780,6 @@ grid.visibility = View.VISIBLE
         }
 
         if (layoutChanged) {
-            // requestLayout is required here; invalidate alone does not remeasure
-            // a reparented child, which is why lower-row WebViews could be stale.
             grid.post {
                 if (!isRefreshingGridPaneThumbnails) grid.requestLayout()
             }
