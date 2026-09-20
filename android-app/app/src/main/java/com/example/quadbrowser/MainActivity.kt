@@ -1263,6 +1263,31 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
     }
 
+    private fun applyGridPageViewport(view: WebView, paneIndex: Int) {
+        val pane = panes.getOrNull(paneIndex) ?: return
+        val scalePercent = pane.gridScalePercent ?: return
+        val targetWidth = ((view.width.coerceAtLeast(1) * 100f) / scalePercent)
+            .toInt()
+            .coerceAtLeast(360)
+        val script = """
+            (function() {
+                var targetWidth = $targetWidth;
+                var meta = document.querySelector('meta[name="viewport"]');
+                if (!meta) {
+                    meta = document.createElement('meta');
+                    meta.name = 'viewport';
+                    document.head.appendChild(meta);
+                }
+                meta.setAttribute('content', 'width=' + targetWidth + ', initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                document.documentElement.style.minWidth = targetWidth + 'px';
+                if (document.body) document.body.style.minWidth = targetWidth + 'px';
+                window.dispatchEvent(new Event('resize'));
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script, null)
+        view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
+    }
+
     private fun configureWebView(webView: WebView, profileName: String, paneIndex: Int) {
         WebViewCompat.setProfile(webView, profileName)
         CookieManager.getInstance().apply {
@@ -1306,6 +1331,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                     ?.takeIf { isGoogleSignInUrl(url) }
                     ?.let { prefillGoogleAccount(view, it) }
                 view.post {
+                    applyGridPageViewport(view, paneIndex)
                     view.requestLayout()
                     view.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
                 }
