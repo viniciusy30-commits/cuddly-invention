@@ -693,11 +693,24 @@ grid.visibility = View.VISIBLE
         view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
     }
 
+    private fun applyCompactWebViewViewport(pane: BrowserPane) {
+        if (pane.gridTransformApplied && pane.gridScalePercent == null) return
+        pane.gridScalePercent = null
+        pane.gridTransformApplied = true
+        pane.webView.settings.useWideViewPort = false
+        pane.webView.settings.loadWithOverviewMode = false
+        pane.webView.setInitialScale(0)
+        restoreDefaultPageViewport(pane.webView)
+        applyWebViewZoom(pane, 100)
+    }
+
     private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
         if (pane.gridScalePercent == gridScalePercent &&
-            (gridScalePercent == null || pane.gridReferenceWidth > 0)
+            (gridScalePercent == null || pane.gridReferenceWidth > 0) &&
+            !pane.gridTransformApplied
         ) return
         pane.gridScalePercent = gridScalePercent
+        pane.gridTransformApplied = false
         pane.webView.settings.useWideViewPort = true
         if (gridScalePercent == null) {
             pane.webView.settings.loadWithOverviewMode = true
@@ -715,11 +728,7 @@ grid.visibility = View.VISIBLE
 
     private fun refreshGridPaneThumbnails() {
         val grid = findViewById<GridLayout>(R.id.browser_grid)
-        // The fullscreen overlay is the reference viewport. Using the normal
-        // grid height makes the page render too large, especially on row two.
-        val fullViewportWidth = fullscreenOverlay.width.takeIf { it > 0 } ?: grid.width
-        val fullViewportHeight = fullscreenOverlay.height.takeIf { it > 0 } ?: grid.height
-        if (fullViewportWidth <= 0 || fullViewportHeight <= 0) return
+        if (grid.width <= 0 || grid.height <= 0) return
 
         panes.forEach { pane ->
             if (pane.container.parent !== pane.thumbnailHost) return@forEach
@@ -727,25 +736,26 @@ grid.visibility = View.VISIBLE
             val hostHeight = pane.thumbnailHost.height
             if (hostWidth <= 0 || hostHeight <= 0) return@forEach
 
+            // A minimized pane must be laid out at its real cell size. Scaling a
+            // fullscreen viewport down keeps a desktop-sized CSS viewport and
+            // makes responsive pages render their PC layout.
             pane.thumbnailHost.clipChildren = true
             pane.thumbnailHost.clipToPadding = true
+            pane.container.layoutParams = FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
             pane.container.pivotX = 0f
             pane.container.pivotY = 0f
             pane.container.scaleX = 1f
             pane.container.scaleY = 1f
             pane.container.translationX = 0f
             pane.container.translationY = 0f
-            pane.gridReferenceWidth = fullViewportWidth
-            pane.gridReferenceHeight = fullViewportHeight
+            pane.gridReferenceWidth = hostWidth
+            pane.gridReferenceHeight = hostHeight
             pane.gridHostWidth = hostWidth
             pane.gridHostHeight = hostHeight
-
-            val widthScale = hostWidth.toFloat() / fullViewportWidth.toFloat()
-            val heightScale = hostHeight.toFloat() / fullViewportHeight.toFloat()
-            val scalePercent = (minOf(widthScale, heightScale) * 100f)
-                .toInt()
-                .coerceIn(10, 100)
-            applyWebViewViewportScale(pane, scalePercent)
+            applyCompactWebViewViewport(pane)
             pane.webView.post {
                 pane.webView.requestLayout()
                 pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
