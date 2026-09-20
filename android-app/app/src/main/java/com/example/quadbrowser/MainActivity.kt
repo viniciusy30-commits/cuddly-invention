@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
         const val AUTO_DELETED_PRESET_PREFIX = "auto_deleted_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
+        const val VIEW_MODE_KEY = "view_mode_paged"
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
         const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
@@ -117,6 +118,7 @@ class MainActivity : AppCompatActivity() {
 
     private val panes = mutableListOf<BrowserPane>()
     private lateinit var fullscreenOverlay: FrameLayout
+    private lateinit var instancePager: PagedInstancesLayout
     private var fullscreenPaneIndex: Int? = null
     private var paneOrder = mutableListOf(0, 1, 2, 3)
     private val defaultPaneNames = listOf("Conta principal", "Conta secundária", "Conta de trocas", "Conta de farm")
@@ -126,6 +128,7 @@ class MainActivity : AppCompatActivity() {
     private var isActivityVisible = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isRefreshingGridPaneThumbnails = false
+    private var isPagerMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         isDarkTheme = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(DARK_THEME_KEY, false)
@@ -135,7 +138,15 @@ class MainActivity : AppCompatActivity() {
         requestNotificationPermissionIfNeeded()
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
-        findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+          instancePager = findViewById(R.id.browser_pager)
+          isPagerMode = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(VIEW_MODE_KEY, false)
+          instancePager.setPageChangedListener { page ->
+              updatePageIndicator(page)
+              refreshPagerPaneThumbnails()
+          }
+          findViewById<TextView>(R.id.page_tab_1).setOnClickListener { instancePager.setCurrentPage(0, true) }
+          findViewById<TextView>(R.id.page_tab_2).setOnClickListener { instancePager.setCurrentPage(1, true) }
+            findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshGridPaneThumbnails()
         }
 findViewById<ImageButton>(R.id.theme_toggle).apply {
@@ -232,8 +243,10 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         }
 
         paneOrder = loadPaneOrder(savedInstanceState)
-        savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let { fullscreenPaneIndex = it }
-        applyPaneLayout()
+          savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let { fullscreenPaneIndex = it }
+          updateViewModeToggle(findViewById(R.id.view_mode_toggle))
+          updatePageIndicator(instancePager.currentPage)
+            applyPaneLayout()
     }
 
     private fun restorePaneState(index: Int, webView: WebView, savedInstanceState: Bundle?) {
@@ -630,6 +643,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
             fullscreenOverlay.addView(pane.container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
         grid.visibility = View.GONE
+        instancePager.visibility = View.GONE
         fullscreenOverlay.visibility = View.VISIBLE
         pane.container.visibility = View.VISIBLE
         panes.forEachIndexed { paneIndex, browserPane ->
@@ -641,43 +655,83 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     }
 
     private fun exitFullscreenPane() {
-        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-        val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
-        if (selectedIndex >= 0) {
-            val pane = panes[selectedIndex]
-            fullscreenOverlay.removeView(pane.container)
-            pane.thumbnailHost.addView(pane.container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-        }
-        fullscreenOverlay.visibility = View.GONE
-        findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
-grid.visibility = View.VISIBLE
-        applyGridPaneOrder()
-        panes.forEachIndexed { index, pane ->
-            pane.container.visibility = View.VISIBLE
-            applyPaneOpenUi(index, pane.isOpen)
-            setFullscreenButtonState(pane, false)
-            setPaneActionState(index)
-        }
-        grid.requestLayout()
-        grid.post {
-            refreshGridPaneThumbnails()
-            refreshAutoClickEditors()
-        }
-    }
+          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          val selectedIndex = panes.indexOfFirst { it.container.parent === fullscreenOverlay }
+          if (selectedIndex >= 0) {
+              val pane = panes[selectedIndex]
+              fullscreenOverlay.removeView(pane.container)
+              pane.thumbnailHost.addView(pane.container, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+          }
+          fullscreenOverlay.visibility = View.GONE
+          findViewById<View>(R.id.app_toolbar).visibility = View.VISIBLE
+          if (isPagerMode) {
+              grid.visibility = View.GONE
+              applyPagerPaneOrder()
+          } else {
+              instancePager.visibility = View.GONE
+              grid.visibility = View.VISIBLE
+              applyGridPaneOrder()
+          }
+          panes.forEachIndexed { index, pane ->
+              pane.container.visibility = View.VISIBLE
+              applyPaneOpenUi(index, pane.isOpen)
+              setFullscreenButtonState(pane, false)
+              setPaneActionState(index)
+          }
+          updateViewModeToggle(findViewById(R.id.view_mode_toggle))
+          if (isPagerMode) {
+              instancePager.requestLayout()
+              instancePager.post { refreshPagerPaneThumbnails(); refreshAutoClickEditors() }
+          } else {
+              grid.requestLayout()
+              grid.post { refreshGridPaneThumbnails(); refreshAutoClickEditors() }
+          }
+      }
 
-    private fun applyGridPaneOrder() {
-        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-        grid.removeAllViews()
-        paneOrder.forEachIndexed { position, identity ->
-            val pane = panes.getOrNull(identity) ?: return@forEachIndexed
-            grid.addView(pane.thumbnailHost, paneLayoutParams(position))
-            refreshPaneHeader(identity)
-        }
-        grid.requestLayout()
-        grid.post { refreshGridPaneThumbnails() }
-    }
+      private fun applyGridPaneOrder() {
+          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          instancePager.removeAllViews()
+          grid.removeAllViews()
+          paneOrder.forEachIndexed { position, identity ->
+              val pane = panes.getOrNull(identity) ?: return@forEachIndexed
+              (pane.thumbnailHost.parent as? ViewGroup)?.removeView(pane.thumbnailHost)
+              grid.addView(pane.thumbnailHost, paneLayoutParams(position))
+              refreshPaneHeader(identity)
+          }
+          grid.visibility = View.VISIBLE
+          instancePager.visibility = View.GONE
+          grid.requestLayout()
+          grid.post { refreshGridPaneThumbnails() }
+      }
 
-    private fun restoreDefaultPageViewport(view: WebView) {
+      private fun applyPagerPaneOrder() {
+          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          grid.removeAllViews()
+          instancePager.removeAllViews()
+          paneOrder.chunked(2).forEach { identities ->
+              val page = LinearLayout(this).apply {
+                  orientation = LinearLayout.VERTICAL
+                  setBackgroundColor(getColor(R.color.grid_background))
+              }
+              identities.forEach { identity ->
+                  val pane = panes.getOrNull(identity) ?: return@forEach
+                  (pane.thumbnailHost.parent as? ViewGroup)?.removeView(pane.thumbnailHost)
+                  page.addView(pane.thumbnailHost, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
+                      setMargins(dp(7), dp(7), dp(7), dp(7))
+                  })
+                  refreshPaneHeader(identity)
+              }
+              instancePager.addView(page, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+          }
+          instancePager.setCurrentPage(instancePager.currentPage.coerceIn(0, 1), false)
+          instancePager.visibility = View.VISIBLE
+          grid.visibility = View.GONE
+          updatePageIndicator(instancePager.currentPage)
+          instancePager.requestLayout()
+          instancePager.post { refreshPagerPaneThumbnails() }
+      }
+
+        private fun restoreDefaultPageViewport(view: WebView) {
         val script = """
             (function() {
                 var meta = document.querySelector('meta[name="viewport"]');
@@ -734,57 +788,75 @@ grid.visibility = View.VISIBLE
     }
 
     private fun refreshGridPaneThumbnails() {
-        if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+          if (isPagerMode) {
+              refreshPagerPaneThumbnails()
+              return
+          }
+          if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          val targetWidth = grid.width.coerceAtLeast(1)
+          val targetHeight = grid.height.coerceAtLeast(1)
+          if (targetWidth <= 1 || targetHeight <= 1) return
+          val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+          if (readyPanes.isEmpty()) return
+          val referenceCellWidth = readyPanes.minOf { it.thumbnailHost.width }
+          val referenceCellHeight = readyPanes.minOf { it.thumbnailHost.height }
+          val scale = minOf(referenceCellWidth.toFloat() / targetWidth, referenceCellHeight.toFloat() / targetHeight).coerceIn(0.1f, 1f)
+          var layoutChanged = false
+          isRefreshingGridPaneThumbnails = true
+          try {
+              grid.clipChildren = true
+              grid.clipToPadding = true
+              readyPanes.forEach { pane ->
+                  pane.gridReferenceWidth = targetWidth
+                  pane.gridReferenceHeight = targetHeight
+                  pane.gridHostWidth = pane.thumbnailHost.width
+                  pane.gridHostHeight = pane.thumbnailHost.height
+                  pane.gridScale = scale
+                  layoutChanged = pane.thumbnailHost.setSurfaceSize(targetWidth, targetHeight, scale) || layoutChanged
+                  applyFullscreenWebViewViewport(pane)
+                  pane.webView.post {
+                      pane.webView.requestLayout()
+                      pane.webView.invalidate()
+                      pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                  }
+              }
+          } finally {
+              isRefreshingGridPaneThumbnails = false
+          }
+          if (layoutChanged) grid.post { if (!isRefreshingGridPaneThumbnails) grid.requestLayout() }
+      }
 
-        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-        val targetWidth = grid.width.coerceAtLeast(1)
-        val targetHeight = grid.height.coerceAtLeast(1)
-        if (targetWidth <= 1 || targetHeight <= 1) return
-
-        val readyPanes = panes.filter {
-            it.container.parent === it.thumbnailHost &&
-                it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0
-        }
-        if (readyPanes.isEmpty()) return
-
-        val referenceCellWidth = readyPanes.minOf { it.thumbnailHost.width }
-        val referenceCellHeight = readyPanes.minOf { it.thumbnailHost.height }
-        val scale = minOf(
-            referenceCellWidth.toFloat() / targetWidth,
-            referenceCellHeight.toFloat() / targetHeight,
-        ).coerceIn(0.1f, 1f)
-
-        var layoutChanged = false
-        isRefreshingGridPaneThumbnails = true
-        try {
-            grid.clipChildren = true
-            grid.clipToPadding = true
-            readyPanes.forEach { pane ->
-                val hostWidth = pane.thumbnailHost.width
-                val hostHeight = pane.thumbnailHost.height
-                pane.gridReferenceWidth = targetWidth
-                pane.gridReferenceHeight = targetHeight
-                pane.gridHostWidth = hostWidth
-                pane.gridHostHeight = hostHeight
-                pane.gridScale = scale
-                layoutChanged = pane.thumbnailHost.setSurfaceSize(targetWidth, targetHeight, scale) || layoutChanged
-                applyFullscreenWebViewViewport(pane)
-                pane.webView.post {
-                    pane.webView.requestLayout()
-                    pane.webView.invalidate()
-                    pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-                }
-            }
-        } finally {
-            isRefreshingGridPaneThumbnails = false
-        }
-
-        if (layoutChanged) {
-            grid.post {
-                if (!isRefreshingGridPaneThumbnails) grid.requestLayout()
-            }
-        }
-    }
+      private fun refreshPagerPaneThumbnails() {
+          if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+          val targetWidth = instancePager.width.coerceAtLeast(1)
+          val targetHeight = (instancePager.height * 2).coerceAtLeast(1)
+          if (targetWidth <= 1 || targetHeight <= 1) return
+          val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+          if (readyPanes.isEmpty()) return
+          val referenceCellWidth = readyPanes.minOf { it.thumbnailHost.width }
+          val referenceCellHeight = readyPanes.minOf { it.thumbnailHost.height }
+          val scale = minOf(referenceCellWidth.toFloat() / targetWidth, referenceCellHeight.toFloat() / targetHeight).coerceIn(0.1f, 1f)
+          isRefreshingGridPaneThumbnails = true
+          try {
+              readyPanes.forEach { pane ->
+                  pane.gridReferenceWidth = targetWidth
+                  pane.gridReferenceHeight = targetHeight
+                  pane.gridHostWidth = pane.thumbnailHost.width
+                  pane.gridHostHeight = pane.thumbnailHost.height
+                  pane.gridScale = scale
+                  pane.thumbnailHost.setSurfaceSize(targetWidth, targetHeight, scale)
+                  applyFullscreenWebViewViewport(pane)
+                  pane.webView.post {
+                      pane.webView.requestLayout()
+                      pane.webView.invalidate()
+                      pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                  }
+              }
+          } finally {
+              isRefreshingGridPaneThumbnails = false
+          }
+      }
 
         private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
@@ -841,7 +913,7 @@ grid.visibility = View.VISIBLE
           if (!pane.isAutoClicking) stopAutoClicker(index)
           pane.isAutoClickEditing = true
           pane.clickLayer.visibility = View.VISIBLE
-          pane.clickLayer.isClickable = true
+          pane.clickLayer.isClickable = false
           pane.clickLayer.post { renderAutoClickEditor(index) }
       }
 
