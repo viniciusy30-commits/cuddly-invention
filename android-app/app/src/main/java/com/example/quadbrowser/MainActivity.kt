@@ -833,37 +833,37 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
       }
 
       private fun refreshPagerPaneThumbnails() {
-          if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
-          val targetWidth = instancePager.width.coerceAtLeast(1)
-          val targetHeight = (instancePager.height * 2).coerceAtLeast(1)
-          if (targetWidth <= 1 || targetHeight <= 1) return
-          val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
-          if (readyPanes.isEmpty()) return
-          val referenceCellWidth = readyPanes.minOf { it.thumbnailHost.width }
-          val referenceCellHeight = readyPanes.minOf { it.thumbnailHost.height }
-          val scale = minOf(referenceCellWidth.toFloat() / targetWidth, referenceCellHeight.toFloat() / targetHeight).coerceIn(0.1f, 1f)
-          isRefreshingGridPaneThumbnails = true
-          try {
-              readyPanes.forEach { pane ->
-                  pane.gridReferenceWidth = targetWidth
-                  pane.gridReferenceHeight = targetHeight
-                  pane.gridHostWidth = pane.thumbnailHost.width
-                  pane.gridHostHeight = pane.thumbnailHost.height
-                  pane.gridScale = scale
-                  pane.thumbnailHost.setSurfaceSize(targetWidth, targetHeight, scale)
-                  applyFullscreenWebViewViewport(pane)
-                  pane.webView.post {
-                      pane.webView.requestLayout()
-                      pane.webView.invalidate()
-                      pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-                  }
-              }
-          } finally {
-              isRefreshingGridPaneThumbnails = false
-          }
-      }
+              if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+              val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+              if (readyPanes.isEmpty()) return
 
-        private fun refreshAutoClickEditors() {
+              // Pager pages show two real panes stacked vertically. Do not reuse the
+              // grid thumbnail scale here: shrinking a full page into the pager
+              // viewport makes each WebView appear as a narrow centered column.
+              isRefreshingGridPaneThumbnails = true
+              try {
+                  readyPanes.forEach { pane ->
+                      val hostWidth = pane.thumbnailHost.width.coerceAtLeast(1)
+                      val hostHeight = pane.thumbnailHost.height.coerceAtLeast(1)
+                      pane.gridReferenceWidth = hostWidth
+                      pane.gridReferenceHeight = hostHeight
+                      pane.gridHostWidth = hostWidth
+                      pane.gridHostHeight = hostHeight
+                      pane.gridScale = 1f
+                      pane.thumbnailHost.setSurfaceSize(hostWidth, hostHeight, 1f)
+                      applyFullscreenWebViewViewport(pane)
+                      pane.webView.post {
+                          pane.webView.requestLayout()
+                          pane.webView.invalidate()
+                          pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                      }
+                  }
+              } finally {
+                  isRefreshingGridPaneThumbnails = false
+              }
+          }
+
+            private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
