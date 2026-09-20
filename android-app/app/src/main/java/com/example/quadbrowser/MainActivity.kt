@@ -678,22 +678,47 @@ grid.visibility = View.VISIBLE
         grid.post { refreshGridPaneThumbnails() }
     }
 
+    private fun restoreDefaultPageViewport(view: WebView) {
+        val script = """
+            (function() {
+                var meta = document.querySelector('meta[name="viewport"]');
+                if (meta) meta.setAttribute('content', 'width=device-width, initial-scale=1.0');
+                document.documentElement.style.minWidth = '';
+                if (document.body) document.body.style.minWidth = '';
+                window.dispatchEvent(new Event('resize'));
+            })();
+        """.trimIndent()
+        view.evaluateJavascript(script, null)
+        view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
+    }
+
     private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
         if (pane.gridScalePercent == gridScalePercent) return
+        val previousPercent = pane.gridScalePercent ?: 100
+        val nextPercent = gridScalePercent ?: 100
         pane.gridScalePercent = gridScalePercent
         pane.webView.settings.useWideViewPort = true
         if (gridScalePercent == null) {
             pane.webView.settings.loadWithOverviewMode = true
             pane.webView.setInitialScale(0)
+            restoreDefaultPageViewport(pane.webView)
         } else {
-            // Keep the WebView measured inside its cell and apply page scale
-            // internally, preserving the original Quad Browser appearance.
+            // Keep the WebView inside its cell and apply the page scale without
+            // destroying the current page/session when the mode changes.
             pane.webView.settings.loadWithOverviewMode = false
             pane.webView.setInitialScale(gridScalePercent)
+            applyGridPageViewport(pane.webView, panes.indexOfFirst { it === pane })
         }
+
         val currentUrl = pane.webView.url
-        if (pane.isOpen && !currentUrl.isNullOrBlank() && currentUrl != "about:blank") {
-            pane.webView.post { pane.webView.reload() }
+        if (pane.isOpen && !currentUrl.isNullOrBlank() && currentUrl != "about:blank" &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        ) {
+            val zoomFactor = (nextPercent.toFloat() / previousPercent.toFloat()).coerceIn(0.25f, 4f)
+            pane.webView.post {
+                pane.webView.zoomBy(zoomFactor)
+                pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+            }
         }
     }
 
