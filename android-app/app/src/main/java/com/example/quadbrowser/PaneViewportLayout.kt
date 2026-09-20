@@ -1,16 +1,19 @@
 package com.example.quadbrowser
 
 import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Matrix
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 
 /**
- * A fixed cell viewport for a scaled browser pane.
+ * Draws a full-size pane into a fixed grid cell without applying Android
+ * View.scaleX/scaleY to the WebView hierarchy.
  *
- * The child is always measured at the same reference surface size. The host
- * itself is measured by the 2x2 grid, so every row gets the same physical
- * viewport and the WebView never keeps a stale lower-row measurement.
+ * Scaling at draw time keeps the WebView layout and scroll metrics stable.
+ * Touches are mapped once from the visible cell back to the full surface.
  */
 class PaneViewportLayout @JvmOverloads constructor(
     context: Context,
@@ -24,6 +27,7 @@ class PaneViewportLayout @JvmOverloads constructor(
     init {
         clipChildren = true
         clipToPadding = true
+        setWillNotDraw(false)
     }
 
     fun setSurfaceSize(width: Int, height: Int, scale: Float): Boolean {
@@ -38,6 +42,7 @@ class PaneViewportLayout @JvmOverloads constructor(
         surfaceHeight = nextHeight
         surfaceScale = nextScale
         requestLayout()
+        invalidate()
         return true
     }
 
@@ -63,11 +68,43 @@ class PaneViewportLayout @JvmOverloads constructor(
         val height = if (surfaceHeight > 0) surfaceHeight else measuredHeight
         child.pivotX = 0f
         child.pivotY = 0f
-        child.scaleX = surfaceScale
-        child.scaleY = surfaceScale
-        child.translationX = (measuredWidth - width * surfaceScale).coerceAtLeast(0f) / 2f
-        child.translationY = (measuredHeight - height * surfaceScale).coerceAtLeast(0f) / 2f
+        child.scaleX = 1f
+        child.scaleY = 1f
+        child.translationX = 0f
+        child.translationY = 0f
         child.layout(0, 0, width, height)
+    }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        if (surfaceScale >= 0.999f) {
+            super.dispatchDraw(canvas)
+            return
+        }
+        val offsetX = (width - surfaceWidth * surfaceScale).coerceAtLeast(0f) / 2f
+        val offsetY = (height - surfaceHeight * surfaceScale).coerceAtLeast(0f) / 2f
+        val saveCount = canvas.save()
+        canvas.clipRect(0f, 0f, width.toFloat(), height.toFloat())
+        canvas.translate(offsetX, offsetY)
+        canvas.scale(surfaceScale, surfaceScale)
+        super.dispatchDraw(canvas)
+        canvas.restoreToCount(saveCount)
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (surfaceScale >= 0.999f || surfaceWidth <= 0 || surfaceHeight <= 0) {
+            return super.dispatchTouchEvent(event)
+        }
+        val offsetX = (width - surfaceWidth * surfaceScale).coerceAtLeast(0f) / 2f
+        val offsetY = (height - surfaceHeight * surfaceScale).coerceAtLeast(0f) / 2f
+        val transformed = MotionEvent.obtain(event)
+        val matrix = Matrix().apply {
+            setScale(1f / surfaceScale, 1f / surfaceScale)
+            postTranslate(-offsetX / surfaceScale, -offsetY / surfaceScale)
+        }
+        transformed.transform(matrix)
+        val handled = super.dispatchTouchEvent(transformed)
+        transformed.recycle()
+        return handled
     }
 
     private fun resolveHostSize(measureSpec: Int, fallback: Int): Int = when (MeasureSpec.getMode(measureSpec)) {
