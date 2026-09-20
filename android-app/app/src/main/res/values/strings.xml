@@ -20,6 +20,10 @@
     <string name="instance_active">Instância %1$d • em execução</string>
     <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
+    <string name="view_mode_switch_to_paged">Alternar para duas abas com duas instâncias</string>
+    <string name="view_mode_switch_to_grid">Alternar para mostrar as quatro instâncias</string>
+    <string name="view_mode_page_1">Aba 1 · 01 + 02</string>
+    <string name="view_mode_page_2">Aba 2 · 03 + 04</string>
     <string name="webview_description_1">Navegador 1</string>
     <string name="webview_description_2">Navegador 2</string>
     <string name="webview_description_3">Navegador 3</string>
