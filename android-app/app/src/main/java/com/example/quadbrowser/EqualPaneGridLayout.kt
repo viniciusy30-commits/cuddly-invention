@@ -16,10 +16,9 @@ class EqualPaneGridLayout @JvmOverloads constructor(
         columnCount = 2
         rowCount = 2
         useDefaultMargins = false
-        // Child hosts clip their own final visual cells; keep the grid from
-        // clipping the untransformed bounds of a scaled fullscreen surface.
-        clipChildren = false
-        clipToPadding = false
+        // Each viewport host owns its exact cell; keep the grid itself bounded too.
+        clipChildren = true
+        clipToPadding = true
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
