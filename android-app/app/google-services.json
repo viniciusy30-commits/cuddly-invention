@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1029834448102",
+    "project_id": "quadbrowser-acesso",
+    "storage_bucket": "quadbrowser-acesso.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1029834448102:android:e2ddd8d064101c3ae3ef27",
+        "android_client_info": {
+          "package_name": "com.example.quadbrowser"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfVTZOKLoa9emMsLuT1c9pVCka4--QSTo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
