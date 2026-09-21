@@ -775,6 +775,18 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         applyWebViewZoom(pane, 100)
     }
 
+    private fun applyGridWebViewViewport(pane: BrowserPane) {
+        // Grid panes are drawn down into a cell, but their WebView layout must
+        // keep the complete reference surface and the same CSS viewport as
+        // fullscreen. Do not restore the compact/mobile viewport here.
+        pane.gridScalePercent = 100
+        pane.gridTransformApplied = false
+        pane.webView.settings.useWideViewPort = true
+        pane.webView.settings.loadWithOverviewMode = false
+        pane.webView.setInitialScale(100)
+        applyGridPageViewport(pane.webView, panes.indexOfFirst { it === pane })
+        applyWebViewZoom(pane, 100)
+    }
     private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
         if (pane.gridScalePercent == gridScalePercent &&
             (gridScalePercent == null || pane.gridReferenceWidth > 0) &&
@@ -840,7 +852,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 pane.gridHostHeight = pane.thumbnailHost.height
                 pane.gridScale = surfaceScale
                 layoutChanged = pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale) || layoutChanged
-                applyFullscreenWebViewViewport(pane)
+                applyGridWebViewViewport(pane)
                 pane.webView.post {
                     pane.webView.requestLayout()
                     pane.webView.invalidate()
