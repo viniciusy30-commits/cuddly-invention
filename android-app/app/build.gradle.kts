@@ -1,11 +1,7 @@
-val accessControlUrl = providers.gradleProperty("accessControlUrl")
-    .orElse(providers.environmentVariable("ACCESS_CONTROL_URL"))
-    .orElse("")
-    .get()
-
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -18,11 +14,6 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
-        buildConfigField("String", "ACCESS_CONTROL_URL", "\"${accessControlUrl.replace("\\", "\\\\").replace("\"", "\\\")}\"")
-    }
-
-    buildFeatures {
-        buildConfig = true
     }
 
     buildTypes {
@@ -49,4 +40,6 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
     implementation("androidx.webkit:webkit:1.12.1")
-}
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+
+    implementation(platform("com.google.firebase:firebase-bom:33.7
