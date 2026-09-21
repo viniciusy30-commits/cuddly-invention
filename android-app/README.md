@@ -57,3 +57,13 @@ cada push em `main` ou `master`, em pull requests e manualmente pela aba
 O workflow instala Java 17, Android SDK API 35, Build Tools 35.0.0 e Gradle
 8.9 no runner gratuito do GitHub. Não é necessário manter um computador ligado
 nem cadastrar uma chave de assinatura para gerar o APK debug.
+
+## Controle de acesso
+
+O APK valida o endereço de rede no serviço privado de controle antes de liberar os quatro navegadores. A validação é feita no servidor e o aplicativo não contém lista de IPs nem tela para desbloqueio.
+
+Para gerar um APK conectado ao seu painel, informe a URL base da API (incluindo /api) ao compilar:
+
+    ./gradlew assembleDebug -PaccessControlUrl=https://SEU-DOMINIO/api
+
+Se a URL não for configurada ou o serviço estiver indisponível, o app bloqueia a abertura por segurança.
