@@ -776,16 +776,16 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     }
 
     private fun applyGridWebViewViewport(pane: BrowserPane) {
-        // Grid panes are drawn down into a cell, but their WebView layout must
-        // keep the complete reference surface and the same CSS viewport as
-        // fullscreen. Do not restore the compact/mobile viewport here.
-        pane.gridScalePercent = 100
+        // The WebView itself now has the real cell size. Let Chromium fit the
+        // page into that viewport instead of scaling an oversized Android View.
+        val scalePercent = (pane.gridScale * 100f).roundToInt().coerceIn(10, 100)
+        pane.gridScalePercent = scalePercent
         pane.gridTransformApplied = false
         pane.webView.settings.useWideViewPort = true
-        pane.webView.settings.loadWithOverviewMode = false
-        pane.webView.setInitialScale(100)
+        pane.webView.settings.loadWithOverviewMode = true
+        pane.webView.setInitialScale(0)
         applyGridPageViewport(pane.webView, panes.indexOfFirst { it === pane })
-        applyWebViewZoom(pane, 100)
+        applyWebViewZoom(pane, scalePercent)
     }
     private fun applyWebViewViewportScale(pane: BrowserPane, gridScalePercent: Int?) {
         if (pane.gridScalePercent == gridScalePercent &&
@@ -851,7 +851,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 pane.gridHostWidth = pane.thumbnailHost.width
                 pane.gridHostHeight = pane.thumbnailHost.height
                 pane.gridScale = surfaceScale
-                layoutChanged = pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale) || layoutChanged
+                layoutChanged = pane.thumbnailHost.setSurfaceSize(pane.thumbnailHost.width, pane.thumbnailHost.height, 1f) || layoutChanged
                 applyGridWebViewViewport(pane)
                 pane.webView.post {
                     pane.webView.requestLayout()
@@ -884,7 +884,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
                 pane.gridHostWidth = pane.thumbnailHost.width
                 pane.gridHostHeight = pane.thumbnailHost.height
                 pane.gridScale = surfaceScale
-                pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale)
+                pane.thumbnailHost.setSurfaceSize(pane.thumbnailHost.width, pane.thumbnailHost.height, 1f)
                 applyFullscreenWebViewViewport(pane)
                 pane.webView.post {
                     pane.webView.requestLayout()
