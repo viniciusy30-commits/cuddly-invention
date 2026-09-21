@@ -23,8 +23,8 @@
         <string name="minimize_to_floating_bubble">Minimizar para a bolha flutuante</string>
         <string name="floating_bubble_permission_required">Permita a sobreposição do Quad Browser para usar o ícone flutuante.</string>
         <string name="floating_bubble_description">Abrir o Quad Browser</string>
-        <string name="view_mode_switch_to_paged">Alternar para duas abas com duas instâncias</string>
-    <string name="view_mode_switch_to_grid">Alternar para mostrar as quatro instâncias</string>
+    <string name="view_mode_switch_to_paged">Mostrar uma instância por aba</string>
+    <string name="view_mode_switch_to_grid">Mostrar as quatro instâncias</string>
     <string name="view_mode_page_1">Aba 1 · 01 + 02</string>
     <string name="view_mode_page_2">Aba 2 · 03 + 04</string>
     <string name="webview_description_1">Navegador 1</string>
