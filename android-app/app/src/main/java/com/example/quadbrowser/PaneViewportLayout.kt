@@ -1,10 +1,8 @@
 package com.example.quadbrowser
 
     import android.content.Context
-    import android.graphics.Matrix
-    import android.util.AttributeSet
-    import android.view.MotionEvent
-    import android.view.View
+        import android.util.AttributeSet
+        import android.view.View
     import android.widget.FrameLayout
 
     /**
@@ -73,25 +71,6 @@ package com.example.quadbrowser
           child.scaleY = surfaceScale
           child.translationX = offsetX
           child.translationY = offsetY
-      }
-
-      override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-          if (surfaceScale >= 0.999f || surfaceWidth <= 0 || surfaceHeight <= 0) {
-              return super.dispatchTouchEvent(event)
-          }
-          val width = surfaceWidth.toFloat()
-          val height = surfaceHeight.toFloat()
-          val offsetX = (this.width - width * surfaceScale).coerceAtLeast(0f) / 2f
-          val offsetY = (this.height - height * surfaceScale).coerceAtLeast(0f) / 2f
-          val transformed = MotionEvent.obtain(event)
-          val matrix = Matrix().apply {
-              setScale(1f / surfaceScale, 1f / surfaceScale)
-              postTranslate(-offsetX / surfaceScale, -offsetY / surfaceScale)
-          }
-          transformed.transform(matrix)
-          val handled = super.dispatchTouchEvent(transformed)
-          transformed.recycle()
-          return handled
       }
 
       private fun resolveHostSize(measureSpec: Int, fallback: Int): Int = when (MeasureSpec.getMode(measureSpec)) {
