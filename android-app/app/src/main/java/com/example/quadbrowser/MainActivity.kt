@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
         const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
-        const val DESKTOP_VIEWPORT_WIDTH = 1280
+        const val MOBILE_VIEWPORT_WIDTH = 390
     }
 
     private data class ClickPoint(var x: Float, var y: Float, var intervalMs: Long = 1000L)
@@ -738,16 +738,16 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         private fun restoreDefaultPageViewport(view: WebView) {
         val script = """
             (function() {
-                var desktopWidth = $DESKTOP_VIEWPORT_WIDTH;
+                var mobileWidth = $MOBILE_VIEWPORT_WIDTH;
                 var meta = document.querySelector('meta[name="viewport"]');
                 if (!meta) {
                     meta = document.createElement('meta');
                     meta.name = 'viewport';
                     document.head.appendChild(meta);
                 }
-                meta.setAttribute('content', 'width=' + desktopWidth + ', initial-scale=1.0');
-                document.documentElement.style.minWidth = desktopWidth + 'px';
-                if (document.body) document.body.style.minWidth = desktopWidth + 'px';
+                meta.setAttribute('content', 'width=' + mobileWidth + ', initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                document.documentElement.style.minWidth = '';
+                if (document.body) document.body.style.minWidth = '';
                 window.dispatchEvent(new Event('resize'));
             })();
         """.trimIndent()
@@ -769,7 +769,7 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
         pane.webView.settings.useWideViewPort = true
-        pane.webView.settings.loadWithOverviewMode = true
+        pane.webView.settings.loadWithOverviewMode = false
         pane.webView.setInitialScale(0)
         restoreDefaultPageViewport(pane.webView)
         applyWebViewZoom(pane, 100)
@@ -798,82 +798,77 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
     }
 
     private fun refreshGridPaneThumbnails() {
-          if (isPagerMode) {
-              refreshPagerPaneThumbnails()
-              return
-          }
-          if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
-          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-          val targetWidth = grid.width.coerceAtLeast(1)
-          val targetHeight = grid.height.coerceAtLeast(1)
-          if (targetWidth <= 1 || targetHeight <= 1) return
-          val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
-          if (readyPanes.isEmpty()) return
-          val referenceCellWidth = readyPanes.minOf { it.thumbnailHost.width }
-          val referenceCellHeight = readyPanes.minOf { it.thumbnailHost.height }
-          val scale = minOf(referenceCellWidth.toFloat() / targetWidth, referenceCellHeight.toFloat() / targetHeight).coerceIn(0.1f, 1f)
-          var layoutChanged = false
-          isRefreshingGridPaneThumbnails = true
-          try {
-              grid.clipChildren = true
-              grid.clipToPadding = true
-              readyPanes.forEach { pane ->
-                  pane.gridReferenceWidth = targetWidth
-                  pane.gridReferenceHeight = targetHeight
-                  pane.gridHostWidth = pane.thumbnailHost.width
-                  pane.gridHostHeight = pane.thumbnailHost.height
-                  pane.gridScale = scale
-                  layoutChanged = pane.thumbnailHost.setSurfaceSize(targetWidth, targetHeight, scale) || layoutChanged
-                  applyFullscreenWebViewViewport(pane)
-                  pane.webView.post {
-                      pane.webView.requestLayout()
-                      pane.webView.invalidate()
-                      pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-                  }
-              }
-          } finally {
-              isRefreshingGridPaneThumbnails = false
-          }
-          if (layoutChanged) grid.post { if (!isRefreshingGridPaneThumbnails) grid.requestLayout() }
-      }
+        if (isPagerMode) {
+            refreshPagerPaneThumbnails()
+            return
+        }
+        if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+        if (grid.width <= 1 || grid.height <= 1) return
+        val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+        if (readyPanes.isEmpty()) return
 
-      private fun refreshPagerPaneThumbnails() {
-              if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
-              val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
-              if (readyPanes.isEmpty()) return
+        // Every pane uses the same mobile Chrome-like viewport and the same scale.
+        // The visible cell is only a preview of that stable mobile surface.
+        val mobileWidth = MOBILE_VIEWPORT_WIDTH
+        val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
+        val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
+        val surfaceScale = (cellWidth.toFloat() / mobileWidth).coerceIn(0.1f, 1f)
+        val surfaceHeight = (cellHeight / surfaceScale).roundToInt().coerceAtLeast(1)
+        var layoutChanged = false
+        isRefreshingGridPaneThumbnails = true
+        try {
+            grid.clipChildren = true
+            grid.clipToPadding = true
+            readyPanes.forEach { pane ->
+                pane.gridReferenceWidth = mobileWidth
+                pane.gridReferenceHeight = surfaceHeight
+                pane.gridHostWidth = pane.thumbnailHost.width
+                pane.gridHostHeight = pane.thumbnailHost.height
+                pane.gridScale = surfaceScale
+                layoutChanged = pane.thumbnailHost.setSurfaceSize(mobileWidth, surfaceHeight, surfaceScale) || layoutChanged
+                applyFullscreenWebViewViewport(pane)
+                pane.webView.post {
+                    pane.webView.requestLayout()
+                    pane.webView.invalidate()
+                    pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                }
+            }
+        } finally {
+            isRefreshingGridPaneThumbnails = false
+        }
+        if (layoutChanged) grid.post { if (!isRefreshingGridPaneThumbnails) grid.requestLayout() }
+    }
 
-              // Pager pages show two real panes stacked vertically. Do not reuse the
-              // grid thumbnail scale here: shrinking a full page into the pager
-              // viewport makes each WebView appear as a narrow centered column.
-              isRefreshingGridPaneThumbnails = true
-              try {
-                  readyPanes.forEach { pane ->
-                      val hostWidth = pane.thumbnailHost.width.coerceAtLeast(1)
-                      val hostHeight = pane.thumbnailHost.height.coerceAtLeast(1)
-                      // Keep a real desktop canvas for the page, then scale that canvas
-                      // into the visible pane. The WebView must be measured at desktop width;
-                      // scaling only the drawing surface prevents responsive sites from seeing a
-                      // phone-sized viewport.
-                      val surfaceWidth = DESKTOP_VIEWPORT_WIDTH
-                      val surfaceScale = (hostWidth.toFloat() / surfaceWidth).coerceIn(0.1f, 1f)
-                      val surfaceHeight = (hostHeight.toFloat() / surfaceScale).roundToInt().coerceAtLeast(1)
-                      pane.gridReferenceWidth = surfaceWidth
-                      pane.gridReferenceHeight = surfaceHeight
-                      pane.gridHostWidth = hostWidth
-                      pane.gridHostHeight = hostHeight
-                      pane.gridScale = surfaceScale
-                      pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale)
-                      applyFullscreenWebViewViewport(pane)
-                      pane.webView.post {
-                          pane.webView.requestLayout()
-                          pane.webView.invalidate()
-                          pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
-                      }
-                  }
-              } finally {
-                  isRefreshingGridPaneThumbnails = false
-              }
-          }
+    private fun refreshPagerPaneThumbnails() {
+        if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+        val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+        if (readyPanes.isEmpty()) return
+        val mobileWidth = MOBILE_VIEWPORT_WIDTH
+        val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
+        val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
+        val surfaceScale = (cellWidth.toFloat() / mobileWidth).coerceIn(0.1f, 1f)
+        val surfaceHeight = (cellHeight / surfaceScale).roundToInt().coerceAtLeast(1)
+        isRefreshingGridPaneThumbnails = true
+        try {
+            readyPanes.forEach { pane ->
+                pane.gridReferenceWidth = mobileWidth
+                pane.gridReferenceHeight = surfaceHeight
+                pane.gridHostWidth = pane.thumbnailHost.width
+                pane.gridHostHeight = pane.thumbnailHost.height
+                pane.gridScale = surfaceScale
+                pane.thumbnailHost.setSurfaceSize(mobileWidth, surfaceHeight, surfaceScale)
+                applyFullscreenWebViewViewport(pane)
+                pane.webView.post {
+                    pane.webView.requestLayout()
+                    pane.webView.invalidate()
+                    pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+                }
+            }
+        } finally {
+            isRefreshingGridPaneThumbnails = false
+        }
+    }
 
             private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
@@ -1493,8 +1488,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         }
         webView.setBackgroundColor(getColor(R.color.pane_background))
         webView.webChromeClient = WebChromeClient()
-        webView.settings.userAgentString =
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         CookieManager.getInstance().flush()
         if (WebViewFeature.isFeatureSupported(WebViewFeature.FORCE_DARK)) {
             WebSettingsCompat.setForceDark(webView.settings, if (isDarkTheme) WebSettingsCompat.FORCE_DARK_ON else WebSettingsCompat.FORCE_DARK_OFF)
