@@ -1354,7 +1354,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
            }
            startBackgroundService(action)
        }
-        private fun startBackgroundService(action: String, showFloatingBubble: Boolean = false) {
+          private fun startBackgroundService(action: String, showFloatingBubble: Boolean = false) {
               val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
                   .setAction(action)
                   .putExtra(AutoClickForegroundService.EXTRA_SHOW_BUBBLE, showFloatingBubble)
@@ -1363,12 +1363,9 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               } catch (error: IllegalStateException) {
                   Log.w("QuadBrowser", "Unable to start background service", error)
               }
-          } catch (error: IllegalStateException) {
-               Log.w("QuadBrowser", "Unable to start background service", error)
-           }
-       }
+          }
 
-       private fun stopAutoClickBackgroundServiceIfIdle() {
+          private fun stopAutoClickBackgroundServiceIfIdle() {
            if (panes.any { it.isAutoClicking } || !isActivityVisible) return
            stopService(Intent(this, AutoClickForegroundService::class.java))
        }
