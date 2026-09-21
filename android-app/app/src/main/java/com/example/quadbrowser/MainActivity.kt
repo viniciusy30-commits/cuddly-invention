@@ -142,23 +142,25 @@ class MainActivity : AppCompatActivity() {
         requestNotificationPermissionIfNeeded()
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
-          instancePager = findViewById(R.id.browser_pager)
-          isPagerMode = false
-          getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(VIEW_MODE_KEY, false).apply()
-          instancePager.setPageChangedListener { page ->
-              updatePageIndicator(page)
-              refreshPagerPaneThumbnails()
-          }
-          findViewById<TextView>(R.id.page_tab_1).setOnClickListener { instancePager.setCurrentPage(0, true) }
-          findViewById<TextView>(R.id.page_tab_2).setOnClickListener { instancePager.setCurrentPage(1, true) }
-            findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        instancePager = findViewById(R.id.browser_pager)
+        val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+        isPagerMode = preferences.getBoolean(VIEW_MODE_KEY, false)
+        instancePager.setPageChangedListener {
+            refreshPagerPaneThumbnails()
+        }
+        findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshGridPaneThumbnails()
         }
-findViewById<ImageButton>(R.id.background_button).setOnClickListener { minimizeToFloatingBubble() }
-
-findViewById<ImageButton>(R.id.theme_toggle).apply {
+        findViewById<ImageButton>(R.id.view_mode_toggle).apply {
+            updateViewModeToggle(this)
+            setOnClickListener { toggleViewMode() }
+        }
+        findViewById<ImageButton>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
             setOnClickListener { toggleTheme() }
+        }
+        findViewById<ImageButton>(R.id.background_button).setOnClickListener {
+            minimizeToFloatingBubble()
         }
 
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
@@ -708,32 +710,40 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
           grid.post { refreshGridPaneThumbnails() }
       }
 
-      private fun applyPagerPaneOrder() {
-          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-          grid.removeAllViews()
-          instancePager.removeAllViews()
-          paneOrder.chunked(2).forEach { identities ->
-              val page = LinearLayout(this).apply {
-                  orientation = LinearLayout.VERTICAL
-                  setBackgroundColor(getColor(R.color.grid_background))
-              }
-              identities.forEach { identity ->
-                  val pane = panes.getOrNull(identity) ?: return@forEach
-                  (pane.thumbnailHost.parent as? ViewGroup)?.removeView(pane.thumbnailHost)
-                  page.addView(pane.thumbnailHost, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f).apply {
-                      setMargins(dp(7), dp(7), dp(7), dp(7))
-                  })
-                  refreshPaneHeader(identity)
-              }
-              instancePager.addView(page, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-          }
-          instancePager.setCurrentPage(instancePager.currentPage.coerceIn(0, 1), false)
-          instancePager.visibility = View.VISIBLE
-          grid.visibility = View.GONE
-          updatePageIndicator(instancePager.currentPage)
-          instancePager.requestLayout()
-          instancePager.post { refreshPagerPaneThumbnails() }
-      }
+    private fun applyPagerPaneOrder() {
+        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+        grid.removeAllViews()
+        instancePager.removeAllViews()
+        paneOrder.forEach { identity ->
+            val pane = panes.getOrNull(identity) ?: return@forEach
+            (pane.thumbnailHost.parent as? ViewGroup)?.removeView(pane.thumbnailHost)
+            val page = FrameLayout(this).apply {
+                setBackgroundColor(getColor(R.color.grid_background))
+                clipChildren = true
+                clipToPadding = true
+            }
+            page.addView(
+                pane.thumbnailHost,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+            refreshPaneHeader(identity)
+            instancePager.addView(
+                page,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
+        instancePager.setCurrentPage(instancePager.currentPage.coerceIn(0, 3), false)
+        instancePager.visibility = View.VISIBLE
+        grid.visibility = View.GONE
+        instancePager.requestLayout()
+        instancePager.post { refreshPagerPaneThumbnails() }
+    }
 
         private fun restoreDefaultPageViewport(view: WebView) {
         val script = """
@@ -1416,7 +1426,18 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
           up.recycle()
       }
 
-        private fun toggleTheme() {
+    private fun toggleViewMode() {
+        if (panes.isEmpty()) return
+        isPagerMode = !isPagerMode
+        getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
+            .edit()
+            .putBoolean(VIEW_MODE_KEY, isPagerMode)
+            .apply()
+        updateViewModeToggle(findViewById(R.id.view_mode_toggle))
+        applyPaneLayout()
+    }
+
+    private fun toggleTheme() {
         isDarkTheme = !isDarkTheme
         getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(DARK_THEME_KEY, isDarkTheme).apply()
         AppCompatDelegate.setDefaultNightMode(if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
@@ -1427,6 +1448,15 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             button.setImageResource(if (isDarkTheme) R.drawable.ic_sun else R.drawable.ic_moon)
             button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
         }
+
+    private fun updateViewModeToggle(button: ImageButton) {
+        button.setImageResource(
+            if (isPagerMode) R.drawable.ic_single_view else R.drawable.ic_grid_view,
+        )
+        button.contentDescription = getString(
+            if (isPagerMode) R.string.view_mode_switch_to_grid else R.string.view_mode_switch_to_paged,
+        )
+    }
           private fun minimizeToFloatingBubble() {
               if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
                   pendingFloatingMinimize = true
@@ -1442,17 +1472,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
           private fun canDrawFloatingBubble(): Boolean =
               Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
     
-        private fun updatePageIndicator(page: Int) {
-            val firstTab = findViewById<TextView>(R.id.page_tab_1)
-            val secondTab = findViewById<TextView>(R.id.page_tab_2)
-            firstTab.setText(R.string.view_mode_page_1)
-            secondTab.setText(R.string.view_mode_page_2)
-            firstTab.setBackgroundResource(if (page == 0) R.drawable.bg_theme_button else R.drawable.bg_icon_button)
-            secondTab.setBackgroundResource(if (page == 1) R.drawable.bg_theme_button else R.drawable.bg_icon_button)
-            firstTab.contentDescription = getString(R.string.view_mode_page_1)
-            secondTab.contentDescription = getString(R.string.view_mode_page_2)
-        }
-
         private fun applyGridPageViewport(view: WebView, paneIndex: Int) {
         val pane = panes.getOrNull(paneIndex) ?: return
         val scalePercent = pane.gridScalePercent ?: return
