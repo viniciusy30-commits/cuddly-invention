@@ -4,6 +4,13 @@ pluginManagement {
         mavenCentral()
         gradlePluginPortal()
     }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "com.google.gms.google-services") {
+                useModule("com.google.gms:google-services:4.4.2")
+            }
+        }
+    }
 }
 
 dependencyResolutionManagement {
