@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.Gravity
 import android.net.Uri
 import android.os.Bundle
@@ -131,6 +132,7 @@ class MainActivity : AppCompatActivity() {
     private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isRefreshingGridPaneThumbnails = false
     private var isPagerMode = false
+    private var pendingFloatingMinimize = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         isDarkTheme = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(DARK_THEME_KEY, false)
@@ -141,7 +143,8 @@ class MainActivity : AppCompatActivity() {
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
           instancePager = findViewById(R.id.browser_pager)
-          isPagerMode = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(VIEW_MODE_KEY, false)
+          isPagerMode = false
+          getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(VIEW_MODE_KEY, false).apply()
           instancePager.setPageChangedListener { page ->
               updatePageIndicator(page)
               refreshPagerPaneThumbnails()
@@ -151,10 +154,7 @@ class MainActivity : AppCompatActivity() {
             findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshGridPaneThumbnails()
         }
-findViewById<ImageButton>(R.id.view_mode_toggle).apply {
-            updateViewModeToggle(this)
-            setOnClickListener { toggleViewMode() }
-        }
+findViewById<ImageButton>(R.id.background_button).setOnClickListener { minimizeToFloatingBubble() }
 
 findViewById<ImageButton>(R.id.theme_toggle).apply {
             updateThemeToggle(this)
@@ -251,8 +251,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
 
         paneOrder = loadPaneOrder(savedInstanceState)
           savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let { fullscreenPaneIndex = it }
-          updateViewModeToggle(findViewById(R.id.view_mode_toggle))
-          updatePageIndicator(instancePager.currentPage)
             applyPaneLayout()
     }
 
@@ -685,7 +683,6 @@ findViewById<ImageButton>(R.id.theme_toggle).apply {
               setFullscreenButtonState(pane, false)
               setPaneActionState(index)
           }
-          updateViewModeToggle(findViewById(R.id.view_mode_toggle))
           if (isPagerMode) {
               instancePager.requestLayout()
               instancePager.post { refreshPagerPaneThumbnails(); refreshAutoClickEditors() }
@@ -1357,13 +1354,16 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
            }
            startBackgroundService(action)
        }
-
-       private fun startBackgroundService(action: String) {
-           val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
-               .setAction(action)
-           try {
-               ContextCompat.startForegroundService(this, serviceIntent)
-           } catch (error: IllegalStateException) {
+        private fun startBackgroundService(action: String, showFloatingBubble: Boolean = false) {
+              val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
+                  .setAction(action)
+                  .putExtra(AutoClickForegroundService.EXTRA_SHOW_BUBBLE, showFloatingBubble)
+              try {
+                  ContextCompat.startForegroundService(this, serviceIntent)
+              } catch (error: IllegalStateException) {
+                  Log.w("QuadBrowser", "Unable to start background service", error)
+              }
+          } catch (error: IllegalStateException) {
                Log.w("QuadBrowser", "Unable to start background service", error)
            }
        }
@@ -1409,20 +1409,21 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             button.setImageResource(if (isDarkTheme) R.drawable.ic_sun else R.drawable.ic_moon)
             button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
         }
+          private fun minimizeToFloatingBubble() {
+              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+                  pendingFloatingMinimize = true
+                  Toast.makeText(this, R.string.floating_bubble_permission_required, Toast.LENGTH_LONG).show()
+                  startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+                  return
+              }
+              pendingFloatingMinimize = false
+              startBackgroundService(AutoClickForegroundService.ACTION_START_BROWSER, showFloatingBubble = true)
+              moveTaskToBack(true)
+          }
 
-        private fun toggleViewMode() {
-            isPagerMode = !isPagerMode
-            getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(VIEW_MODE_KEY, isPagerMode).apply()
-            applyPaneLayout()
-        }
-
-        private fun updateViewModeToggle(button: ImageButton) {
-            button.setImageResource(R.drawable.ic_view_mode)
-            button.contentDescription = getString(if (isPagerMode) R.string.view_mode_switch_to_grid else R.string.view_mode_switch_to_paged)
-            findViewById<View>(R.id.page_tabs).visibility = if (isPagerMode && fullscreenPaneIndex == null) View.VISIBLE else View.GONE
-            updatePageIndicator(instancePager.currentPage)
-        }
-
+          private fun canDrawFloatingBubble(): Boolean =
+              Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+    
         private fun updatePageIndicator(page: Int) {
             val firstTab = findViewById<TextView>(R.id.page_tab_1)
             val secondTab = findViewById<TextView>(R.id.page_tab_2)
@@ -1613,12 +1614,17 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     }
 
     override fun onResume() {
-        super.onResume()
-        isActivityVisible = true
-        if (!panes.any { it.isAutoClicking }) {
-            stopService(Intent(this, AutoClickForegroundService::class.java))
-        }
-    }
+          super.onResume()
+          isActivityVisible = true
+          if (pendingFloatingMinimize && canDrawFloatingBubble()) {
+              pendingFloatingMinimize = false
+              window.decorView.post { minimizeToFloatingBubble() }
+              return
+          }
+          if (!panes.any { it.isAutoClicking }) {
+              stopService(Intent(this, AutoClickForegroundService::class.java))
+          }
+      }
 
     override fun onPause() {
         persistAllPaneState()

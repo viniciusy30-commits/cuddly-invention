@@ -9,15 +9,18 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
+import android.provider.Settings
 import androidx.core.app.NotificationCompat
 
 class AutoClickForegroundService : Service() {
-    private var showAutoClickStatus = false
-    companion object {
+      private var showAutoClickStatus = false
+      private var floatingBubble: FloatingBubbleOverlay? = null
+        companion object {
         const val ACTION_START = "com.example.quadbrowser.action.START_AUTO_CLICK"
         const val ACTION_START_BROWSER = "com.example.quadbrowser.action.START_BROWSER"
         const val ACTION_STOP = "com.example.quadbrowser.action.STOP_AUTO_CLICK"
-
+          const val EXTRA_SHOW_BUBBLE = "show_floating_bubble"
+    
         private const val CHANNEL_ID = "auto_clicker_background"
         private const val NOTIFICATION_ID = 1001
 
@@ -64,10 +67,36 @@ class AutoClickForegroundService : Service() {
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }
-        return START_STICKY
-    }
+        if (intent?.getBooleanExtra(EXTRA_SHOW_BUBBLE, false) == true) showFloatingBubble()
+          return START_STICKY
+      }
 
-    private fun buildNotification(showAutoClickStatus: Boolean): Notification {
+      private fun showFloatingBubble() {
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) return
+          if (floatingBubble == null) {
+              floatingBubble = FloatingBubbleOverlay(this) {
+                  hideFloatingBubble()
+                  val openAppIntent = Intent(this, MainActivity::class.java).apply {
+                      addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                  }
+                  startActivity(openAppIntent)
+                  if (!showAutoClickStatus) stopSelf()
+              }
+          }
+          floatingBubble?.show()
+      }
+
+      private fun hideFloatingBubble() {
+          floatingBubble?.hide()
+      }
+
+      override fun onDestroy() {
+          hideFloatingBubble()
+          floatingBubble = null
+          super.onDestroy()
+      }
+
+      private fun buildNotification(showAutoClickStatus: Boolean): Notification {
         val openAppIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
             this,

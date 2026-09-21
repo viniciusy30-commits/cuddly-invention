@@ -57,10 +57,10 @@
         </LinearLayout>
 
         <ImageButton
-            android:id="@+id/view_mode_toggle"
+            android:id="@+id/background_button"
             style="@style/ThemeButton"
-            android:contentDescription="@string/view_mode_switch_to_paged"
-            android:src="@drawable/ic_view_mode" />
+            android:contentDescription="@string/minimize_to_floating_bubble"
+            android:src="@drawable/ic_minimize" />
 
         <ImageButton
             android:id="@+id/theme_toggle"
