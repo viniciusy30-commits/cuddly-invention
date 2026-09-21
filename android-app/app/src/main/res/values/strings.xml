@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Quad Browser</string>
-    <string name="app_subtitle">Quatro espaços independentes, um só painel</string>
+    <string name="app_name">Multi Account</string>
+    <string name="app_subtitle">Quatro contas independentes em um só painel</string>
     <string name="address_hint">Digite um site ou faça uma busca</string>
     <string name="navigate">Abrir endereço neste espaço</string>
     <string name="navigate_pane">Navegar no espaço %1$d</string>
@@ -21,8 +21,8 @@
     <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
         <string name="minimize_to_floating_bubble">Minimizar para a bolha flutuante</string>
-        <string name="floating_bubble_permission_required">Permita a sobreposição do Quad Browser para usar o ícone flutuante.</string>
-        <string name="floating_bubble_description">Abrir o Quad Browser</string>
+        <string name="floating_bubble_permission_required">Permita a sobreposição do Multi Account para usar o ícone flutuante.</string>
+        <string name="floating_bubble_description">Abrir o Multi Account</string>
     <string name="view_mode_switch_to_paged">Mostrar uma instância por aba</string>
     <string name="view_mode_switch_to_grid">Mostrar as quatro instâncias</string>
     <string name="view_mode_page_1">Aba 1 · 01 + 02</string>
@@ -62,12 +62,12 @@
       <string name="auto_clicker_started">Sequência do auto clicker ativa</string>
       <string name="auto_clicker_stopped">Sequência pausada</string>
     <string name="auto_clicker_background_channel">Auto Click em segundo plano</string>
-    <string name="auto_clicker_background_channel_description">Mantém o Auto Click ativo enquanto o Quad Browser está minimizado.</string>
+    <string name="auto_clicker_background_channel_description">Mantém o Auto Click ativo enquanto o Multi Account está minimizado.</string>
     <string name="auto_clicker_background_title">Auto Click ativo</string>
-    <string name="auto_clicker_background_message">O Quad Browser continua funcionando em segundo plano.</string>
-    <string name="browser_background_channel">Quad Browser em segundo plano</string>
-    <string name="browser_background_channel_description">Mantém as instâncias do Quad Browser funcionando quando o app é minimizado ou a tela é apagada.</string>
-    <string name="browser_background_title">Quad Browser ativo</string>
+    <string name="auto_clicker_background_message">O Multi Account continua funcionando em segundo plano.</string>
+    <string name="browser_background_channel">Multi Account em segundo plano</string>
+    <string name="browser_background_channel_description">Mantém as instâncias do Multi Account funcionando quando o app é minimizado ou a tela é apagada.</string>
+    <string name="browser_background_title">Multi Account ativo</string>
     <string name="browser_background_message">Toque aqui para voltar. As instâncias continuam funcionando.</string>
     <string name="google_account_picker_description">Escolha a conta Google para esta instância</string>
     <string name="google_account_not_selected">Nenhuma conta Google foi escolhida.</string>
