@@ -1,7 +1,9 @@
 # Quad Browser
 
-Projeto Android nativo em Kotlin com quatro WebViews simultâneos em uma grade
-2×2. Cada quadrante usa um perfil nomeado diferente do AndroidX WebKit:
+Projeto Android nativo em Kotlin com quatro WebViews simultâneos. A visualização
+principal mostra os quatro espaços em uma grade 2×2; o botão de visualização
+também permite abrir uma instância por vez em quatro abas horizontais, com
+deslize para trocar de instância. Cada espaço usa um perfil nomeado diferente do AndroidX WebKit:
 `webview1`, `webview2`, `webview3` e `webview4`.
 
 ## Isolamento de sessão
@@ -41,8 +43,9 @@ da borda pode revelar temporariamente as barras do Android.
 
 Cada quadrante tem um botão `⛶` na barra de controles. Toque nele para ampliar
 esse navegador e ocultar os outros três. Toque novamente no botão `×` para
-voltar à grade 2×2. A sessão, cookies e navegação do quadrante continuam
-preservados durante a troca de visualização.
+voltar à visualização escolhida. O botão central de visualização alterna entre
+a grade 2×2 e o modo de uma instância por aba. A sessão, cookies e navegação
+de cada espaço continuam preservados durante a troca de visualização.
 
 ## Build gratuito pelo GitHub Actions
 
