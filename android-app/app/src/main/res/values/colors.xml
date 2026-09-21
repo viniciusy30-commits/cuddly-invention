@@ -17,4 +17,7 @@
     <color name="danger">#D94F66</color>
     <color name="danger_background">#FFF0F3</color>
     <color name="danger_stroke">#F1C7D0</color>
+    <color name="icon_background">#15233E</color>
+    <color name="icon_account_green">#00A896</color>
+    <color name="icon_account_gold">#F0A202</color>
 </resources>
