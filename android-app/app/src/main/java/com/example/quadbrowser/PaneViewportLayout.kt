@@ -22,6 +22,9 @@ package com.example.quadbrowser
       init {
           clipChildren = true
           clipToPadding = true
+          // Force one complete bitmap layer for the scaled WebView surface.
+          // This prevents lower-row tiles from stopping at the first repaint.
+          setLayerType(View.LAYER_TYPE_SOFTWARE, null)
       }
 
       fun setSurfaceSize(width: Int, height: Int, scale: Float): Boolean {
