@@ -12,61 +12,34 @@
         android:layout_height="68dp"
         android:background="@drawable/bg_app_toolbar"
         android:elevation="8dp"
-        android:gravity="center_vertical"
+        android:gravity="center"
         android:orientation="horizontal"
-        android:paddingStart="18dp"
+        android:paddingStart="12dp"
         android:paddingEnd="12dp">
 
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/app_title"
-                style="@style/AppTitle"
-                android:text="@string/app_name" />
-
-            <TextView
-                android:id="@+id/app_subtitle"
-                style="@style/AppSubtitle"
-                android:layout_marginTop="3dp"
-                android:text="@string/app_subtitle" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/page_tabs"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <TextView
-                android:id="@+id/page_tab_1"
-                style="@style/PageTab"
-                android:text="@string/view_mode_page_1" />
-
-            <TextView
-                android:id="@+id/page_tab_2"
-                style="@style/PageTab"
-                android:layout_marginStart="4dp"
-                android:text="@string/view_mode_page_2" />
-        </LinearLayout>
-
         <ImageButton
-            android:id="@+id/background_button"
+            android:id="@+id/view_mode_toggle"
             style="@style/ThemeButton"
-            android:contentDescription="@string/minimize_to_floating_bubble"
-            android:src="@drawable/ic_minimize" />
+            android:layout_marginStart="7dp"
+            android:layout_marginEnd="7dp"
+            android:contentDescription="@string/view_mode_switch_to_paged"
+            android:src="@drawable/ic_grid_view" />
 
         <ImageButton
             android:id="@+id/theme_toggle"
             style="@style/ThemeButton"
+            android:layout_marginStart="7dp"
+            android:layout_marginEnd="7dp"
             android:contentDescription="@string/theme_switch_to_dark"
             android:src="@drawable/ic_moon" />
+
+        <ImageButton
+            android:id="@+id/background_button"
+            style="@style/ThemeButton"
+            android:layout_marginStart="7dp"
+            android:layout_marginEnd="7dp"
+            android:contentDescription="@string/minimize_to_floating_bubble"
+            android:src="@drawable/ic_minimize" />
     </LinearLayout>
 
     <FrameLayout
