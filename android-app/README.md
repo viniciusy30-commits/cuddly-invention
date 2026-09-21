@@ -1,4 +1,4 @@
-# Quad Browser
+# Multi Account
 
 Projeto Android nativo em Kotlin com quatro WebViews simultâneos. A visualização
 principal mostra os quatro espaços em uma grade 2×2; o botão de visualização
