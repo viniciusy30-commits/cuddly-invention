@@ -38,6 +38,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.ProgressBar
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -133,12 +134,14 @@ class MainActivity : AppCompatActivity() {
     private var isRefreshingGridPaneThumbnails = false
     private var isPagerMode = false
     private var pendingFloatingMinimize = false
+    private var accessGateOverlay: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         isDarkTheme = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getBoolean(DARK_THEME_KEY, false)
         AppCompatDelegate.setDefaultNightMode(if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        beginAccessGate()
         requestNotificationPermissionIfNeeded()
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
@@ -1401,7 +1404,57 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
            stopService(Intent(this, AutoClickForegroundService::class.java))
        }
 
-       private fun requestNotificationPermissionIfNeeded() {
+    private fun beginAccessGate() {
+        val root = findViewById<FrameLayout>(android.R.id.content)
+        val overlay = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(48, 48, 48, 48)
+            setBackgroundColor(Color.rgb(14, 18, 28))
+            isClickable = true
+            isFocusable = true
+        }
+        val progress = ProgressBar(this)
+        val title = TextView(this).apply {
+            text = "Verificando acesso"
+            textSize = 21f
+            setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER
+        }
+        val message = TextView(this).apply {
+            text = "Aguarde enquanto validamos este dispositivo."
+            textSize = 15f
+            setTextColor(Color.LTGRAY)
+            gravity = Gravity.CENTER
+            setPadding(0, 18, 0, 0)
+        }
+        overlay.addView(progress, LinearLayout.LayoutParams(64, 64))
+        overlay.addView(title, LinearLayout.LayoutParams(-1, -2))
+        overlay.addView(message, LinearLayout.LayoutParams(-1, -2))
+        root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
+        accessGateOverlay = overlay
+
+        Thread {
+            val decision = AccessControlGate.check(BuildConfig.ACCESS_CONTROL_URL)
+            runOnUiThread {
+                if (decision.allowed) {
+                    root.removeView(overlay)
+                    accessGateOverlay = null
+                } else {
+                    progress.visibility = View.GONE
+                    title.text = "Acesso indisponível"
+                    message.text = decision.reason
+                    val close = Button(this).apply {
+                        text = "Fechar"
+                        setOnClickListener { finishAffinity() }
+                    }
+                    overlay.addView(close, LinearLayout.LayoutParams(-1, -2).apply { topMargin = 28 })
+                }
+            }
+        }.start()
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
            ) {
