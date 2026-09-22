@@ -770,7 +770,26 @@ class MainActivity : AppCompatActivity() {
         view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
     }
 
-    private fun applyCompactWebViewViewport(pane: BrowserPane) {
+    private fun applyResponsiveWebViewViewport(view: WebView) {
+          val script = """
+              (function() {
+                  var meta = document.querySelector('meta[name="viewport"]');
+                  if (!meta) {
+                      meta = document.createElement('meta');
+                      meta.name = 'viewport';
+                      document.head.appendChild(meta);
+                  }
+                  meta.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
+                  document.documentElement.style.minWidth = '';
+                  if (document.body) document.body.style.minWidth = '';
+                  window.dispatchEvent(new Event('resize'));
+              })();
+          """.trimIndent()
+          view.evaluateJavascript(script, null)
+          view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
+      }
+
+        private fun applyCompactWebViewViewport(pane: BrowserPane) {
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
         pane.webView.settings.useWideViewPort = false
@@ -791,20 +810,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyGridWebViewViewport(pane: BrowserPane) {
-        // The visual scaling is handled entirely by PaneViewportLayout
-        // (View.scaleX/scaleY), so the WebView itself is always kept at the
-        // same fullscreen viewport/zoom as in single-pane mode. This is what
-        // makes the grid a true "zoomed out" copy instead of a page that
-        // re-flows its own responsive layout for a tiny viewport.
-        pane.gridScalePercent = 100
-        pane.gridTransformApplied = false
-        pane.webView.settings.useWideViewPort = true
-        pane.webView.settings.loadWithOverviewMode = false
-        restoreDefaultPageViewport(pane.webView)
-        applyWebViewZoom(pane, 100)
-    }
+          pane.gridScalePercent = 100
+          pane.gridTransformApplied = false
+          pane.webView.settings.useWideViewPort = false
+          pane.webView.settings.loadWithOverviewMode = false
+          pane.webView.setInitialScale(0)
+          applyResponsiveWebViewViewport(pane.webView)
+          applyWebViewZoom(pane, 100)
+      }
 
-    private fun thumbnailReferenceSize(): Pair<Int, Int> {
+      private fun thumbnailReferenceSize(): Pair<Int, Int> {
         val content = findViewById<View>(R.id.browser_content)
         val referenceWidth = fullscreenOverlay.width.takeIf { it > 1 }
             ?: (content.width - content.paddingLeft - content.paddingRight).takeIf { it > 1 }
@@ -816,72 +831,58 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshGridPaneThumbnails() {
-        if (isPagerMode) {
-            refreshPagerPaneThumbnails()
-            return
-        }
-        if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
-        val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
-        if (grid.width <= 1 || grid.height <= 1) return
-        val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
-        if (readyPanes.isEmpty()) return
+          if (isPagerMode) {
+              refreshPagerPaneThumbnails()
+              return
+          }
+          if (isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+          val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
+          if (grid.width <= 1 || grid.height <= 1) return
+          val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+          if (readyPanes.isEmpty()) return
 
-        // Use the exact fullscreen surface as the source image. The grid only scales
-        // that complete surface down, so the page composition and viewport are identical.
-        val (surfaceWidth, surfaceHeight) = thumbnailReferenceSize()
-        val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
-        val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
-        val surfaceScale = minOf(
-            cellWidth.toFloat() / surfaceWidth.toFloat(),
-            cellHeight.toFloat() / surfaceHeight.toFloat(),
-        ).coerceIn(0.1f, 1f)
-        var layoutChanged = false
-        isRefreshingGridPaneThumbnails = true
-        try {
-            grid.clipChildren = true
-            grid.clipToPadding = true
-            readyPanes.forEach { pane ->
-                pane.gridReferenceWidth = surfaceWidth
-                pane.gridReferenceHeight = surfaceHeight
-                pane.gridHostWidth = pane.thumbnailHost.width
-                pane.gridHostHeight = pane.thumbnailHost.height
-                pane.gridScale = surfaceScale
-                layoutChanged = pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale) || layoutChanged
-                applyGridWebViewViewport(pane)
-            }
-        } finally {
-            isRefreshingGridPaneThumbnails = false
-        }
-        if (layoutChanged) grid.post { if (!isRefreshingGridPaneThumbnails) grid.requestLayout() }
-    }
+          isRefreshingGridPaneThumbnails = true
+          try {
+              grid.clipChildren = true
+              grid.clipToPadding = true
+              readyPanes.forEach { pane ->
+                  val cellWidth = pane.thumbnailHost.width
+                  val cellHeight = pane.thumbnailHost.height
+                  pane.gridReferenceWidth = cellWidth
+                  pane.gridReferenceHeight = cellHeight
+                  pane.gridHostWidth = cellWidth
+                  pane.gridHostHeight = cellHeight
+                  pane.gridScale = 1f
+                  pane.thumbnailHost.setSurfaceSize(cellWidth, cellHeight, 1f)
+                  applyGridWebViewViewport(pane)
+              }
+          } finally {
+              isRefreshingGridPaneThumbnails = false
+          }
+      }
 
-    private fun refreshPagerPaneThumbnails() {
-        if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
-        val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
-        if (readyPanes.isEmpty()) return
-        val (surfaceWidth, surfaceHeight) = thumbnailReferenceSize()
-        val cellWidth = readyPanes.minOf { it.thumbnailHost.width }
-        val cellHeight = readyPanes.minOf { it.thumbnailHost.height }
-        val surfaceScale = minOf(
-            cellWidth.toFloat() / surfaceWidth.toFloat(),
-            cellHeight.toFloat() / surfaceHeight.toFloat(),
-        ).coerceIn(0.1f, 1f)
-        isRefreshingGridPaneThumbnails = true
-        try {
-            readyPanes.forEach { pane ->
-                pane.gridReferenceWidth = surfaceWidth
-                pane.gridReferenceHeight = surfaceHeight
-                pane.gridHostWidth = pane.thumbnailHost.width
-                pane.gridHostHeight = pane.thumbnailHost.height
-                pane.gridScale = surfaceScale
-                pane.thumbnailHost.setSurfaceSize(surfaceWidth, surfaceHeight, surfaceScale)
-                applyFullscreenWebViewViewport(pane)
-            }
-        } finally {
-            isRefreshingGridPaneThumbnails = false
-        }
-    }
-            private fun refreshAutoClickEditors() {
+      private fun refreshPagerPaneThumbnails() {
+          if (!isPagerMode || isRefreshingGridPaneThumbnails || panes.isEmpty()) return
+          val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.parent != null && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
+          if (readyPanes.isEmpty()) return
+          isRefreshingGridPaneThumbnails = true
+          try {
+              readyPanes.forEach { pane ->
+                  val pageWidth = pane.thumbnailHost.width
+                  val pageHeight = pane.thumbnailHost.height
+                  pane.gridReferenceWidth = pageWidth
+                  pane.gridReferenceHeight = pageHeight
+                  pane.gridHostWidth = pageWidth
+                  pane.gridHostHeight = pageHeight
+                  pane.gridScale = 1f
+                  pane.thumbnailHost.setSurfaceSize(pageWidth, pageHeight, 1f)
+                  applyFullscreenWebViewViewport(pane)
+              }
+          } finally {
+              isRefreshingGridPaneThumbnails = false
+          }
+      }
+              private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
                 pane.clickLayer.post { renderAutoClickEditor(index) }
