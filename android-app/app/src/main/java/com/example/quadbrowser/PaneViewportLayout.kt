@@ -39,6 +39,7 @@ class PaneViewportLayout @JvmOverloads constructor(
     private var referenceWidth = 0
     private var referenceHeight = 0
     private var scaledMode = false
+    private var requestedScale = 1f
 
     private val snapshotView = ImageView(context).apply {
         scaleType = ImageView.ScaleType.MATRIX
@@ -70,6 +71,7 @@ class PaneViewportLayout @JvmOverloads constructor(
         val changed = referenceWidth != nextWidth || referenceHeight != nextHeight
         referenceWidth = nextWidth
         referenceHeight = nextHeight
+        requestedScale = scale.coerceIn(0.05f, 1f)
         if (changed) requestLayout()
         return changed
     }
@@ -83,7 +85,7 @@ class PaneViewportLayout @JvmOverloads constructor(
         )
         val child = getChildAt(1)
         if (child != null && child.visibility != View.GONE) {
-            scaledMode = referenceWidth > hostWidth || referenceHeight > hostHeight
+            scaledMode = referenceWidth > hostWidth || referenceHeight > hostHeight || requestedScale < 0.999f
             val childWidth = if (scaledMode) referenceWidth else hostWidth
             val childHeight = if (scaledMode) referenceHeight else hostHeight
             child.measure(
@@ -93,7 +95,7 @@ class PaneViewportLayout @JvmOverloads constructor(
             if (scaledMode) {
                 val scaleX = hostWidth.toFloat() / childWidth.toFloat()
                 val scaleY = hostHeight.toFloat() / childHeight.toFloat()
-                val uniformScale = minOf(scaleX, scaleY).coerceIn(0.05f, 1f)
+                val uniformScale = minOf(scaleX, scaleY, requestedScale).coerceIn(0.05f, 1f)
                 child.pivotX = 0f
                 child.pivotY = 0f
                 child.scaleX = uniformScale
