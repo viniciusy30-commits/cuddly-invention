@@ -138,8 +138,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fullscreenOverlay: FrameLayout
     private lateinit var instancePager: PagedInstancesLayout
     private lateinit var pagerSwitchStrip: View
-    private lateinit var pagerPreviousButton: TextView
-    private lateinit var pagerNextButton: TextView
+    private lateinit var pagerPreviousButton: ImageButton
+    private lateinit var pagerNextButton: ImageButton
     private lateinit var pagerDots: List<TextView>
     private var fullscreenPaneIndex: Int? = null
     private var paneOrder = mutableListOf(0, 1, 2, 3)
@@ -846,6 +846,8 @@ class MainActivity : AppCompatActivity() {
             val isSelected = position == instancePager.currentPage
             val color = runCatching { Color.parseColor(paneColor(identity)) }
                 .getOrDefault(getColor(R.color.accent))
+            val selectedStroke = if (isDarkTheme) Color.WHITE else Color.BLACK
+            val inactiveStroke = if (isDarkTheme) Color.argb(100, 255, 255, 255) else Color.argb(100, 0, 0, 0)
             dot.text = paneAvatar(identity).ifBlank { (identity + 1).toString() }.take(3)
             dot.setTextColor(Color.WHITE)
             dot.setTypeface(Typeface.DEFAULT, Typeface.BOLD)
@@ -853,7 +855,7 @@ class MainActivity : AppCompatActivity() {
             dot.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(color)
-                setStroke(dp(if (isSelected) 2 else 1), if (isSelected) Color.WHITE else Color.argb(100, 255, 255, 255))
+                setStroke(dp(if (isSelected) 2 else 1), if (isSelected) selectedStroke else inactiveStroke)
             }
             dot.alpha = 1f
             dot.contentDescription = getString(R.string.pager_switch_to_instance_named, paneName(identity))
