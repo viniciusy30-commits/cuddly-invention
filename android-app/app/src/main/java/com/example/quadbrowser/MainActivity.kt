@@ -13,11 +13,12 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.provider.Settings
+import android.app.PictureInPictureParams
 import android.view.Gravity
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.util.Rational
 import android.util.Patterns
 import android.view.MotionEvent
 import android.view.View
@@ -150,7 +151,6 @@ class MainActivity : AppCompatActivity() {
     private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isRefreshingGridPaneThumbnails = false
     private var isPagerMode = false
-    private var pendingFloatingMinimize = false
     private var accessGateOverlay: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -197,7 +197,7 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { toggleTheme() }
         }
         findViewById<ImageButton>(R.id.background_button).setOnClickListener {
-            minimizeToFloatingBubble()
+            minimizeToPictureInPicture()
         }
 
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.MULTI_PROFILE)) {
@@ -1568,21 +1568,35 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             if (isPagerMode) R.string.view_mode_switch_to_grid else R.string.view_mode_switch_to_paged,
         )
     }
-          private fun minimizeToFloatingBubble() {
-              if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-                  pendingFloatingMinimize = true
-                  Toast.makeText(this, R.string.floating_bubble_permission_required, Toast.LENGTH_LONG).show()
-                  startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
-                  return
-              }
-              pendingFloatingMinimize = false
-              startBackgroundService(AutoClickForegroundService.ACTION_START_BROWSER, showFloatingBubble = true)
-              moveTaskToBack(true)
+    private fun minimizeToPictureInPicture() {
+          if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+              Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+              return
           }
 
-          private fun canDrawFloatingBubble(): Boolean =
-              Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)
+          val content = findViewById<View>(R.id.browser_content)
+          val width = content.width.coerceAtLeast(1)
+          val height = content.height.coerceAtLeast(1)
+          val ratio = (width.toFloat() / height.toFloat()).coerceIn(0.418f, 2.39f)
+          val denominator = 1000
+          val numerator = (ratio * denominator).roundToInt().coerceIn(418, 2390)
+          val paramsBuilder = PictureInPictureParams.Builder()
+              .setAspectRatio(Rational(numerator, denominator))
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+              paramsBuilder.setSeamlessResizeEnabled(true)
+          }
 
+          try {
+              if (!enterPictureInPictureMode(paramsBuilder.build())) {
+                  Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+              }
+          } catch (error: IllegalStateException) {
+              Log.w("QuadBrowser", "Unable to enter picture-in-picture mode", error)
+              Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+          }
+      }
+
+    
     private fun applyWebViewZoom(pane: BrowserPane, targetPercent: Int) {
         val target = targetPercent.coerceIn(10, 100)
         val previous = pane.webViewZoomPercent.coerceIn(10, 100)
@@ -1731,11 +1745,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     override fun onResume() {
           super.onResume()
           isActivityVisible = true
-          if (pendingFloatingMinimize && canDrawFloatingBubble()) {
-              pendingFloatingMinimize = false
-              window.decorView.post { minimizeToFloatingBubble() }
-              return
-          }
           if (!panes.any { it.isAutoClicking }) {
               stopService(Intent(this, AutoClickForegroundService::class.java))
           }
