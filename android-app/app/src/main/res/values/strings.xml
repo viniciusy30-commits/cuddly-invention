@@ -28,6 +28,9 @@
     <string name="pager_switch_to_instance_2">Ir para instância 2</string>
     <string name="pager_switch_to_instance_3">Ir para instância 3</string>
     <string name="pager_switch_to_instance_4">Ir para instância 4</string>
+    <string name="pager_switch_to_instance_named">Ir para %1$s</string>
+    <string name="pager_previous">Ir para a instância anterior</string>
+    <string name="pager_next">Ir para a próxima instância</string>
     <string name="view_mode_switch_to_grid">Mostrar as quatro instâncias</string>
     <string name="view_mode_page_1">Aba 1 · 01 + 02</string>
     <string name="view_mode_page_2">Aba 2 · 03 + 04</string>
