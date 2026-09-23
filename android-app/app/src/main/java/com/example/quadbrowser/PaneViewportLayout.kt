@@ -6,28 +6,18 @@ import android.view.View
 import android.widget.FrameLayout
 
 /**
- * A viewport host whose child (the WebView) is always laid out at exactly
- * this host's own on-screen size — no reference/fullscreen sizing, no
- * visual scaling, no snapshotting. The web page renders responsively at
- * whatever size the cell actually is, the same way it would on a small
- * phone screen.
- *
- * This is intentionally the simplest possible implementation. Earlier
- * versions tried to render the page at a fixed "fullscreen" reference size
- * and shrink it visually (via View.scaleX/scaleY or a frozen snapshot) so
- * grid thumbnails would look like a zoomed-out copy of the fullscreen page.
- * That approach caused a cascade of hard-to-fix issues: a GPU-compositing
- * desync during scroll (stale background-colored pixels), duplicated/
- * misplaced content when a new page loaded, and inconsistent cell sizing.
- * None of the incremental fixes attempted (clip bounds, touch remapping,
- * software layers, frozen snapshots) fully resolved it. Falling back to
- * "the WebView is simply the size of its cell" removes the entire class of
- * bug at the cost of the page re-flowing its own responsive layout for a
- * smaller viewport instead of being a pixel-perfect shrunk copy.
+ * Hosts a pane at its fullscreen surface size and scales it uniformly into
+ * the available cell or Picture-in-Picture window. The WebView and its
+ * auto-click overlay therefore keep the same coordinate space as fullscreen;
+ * only the rendered pixels are reduced.
  */
 class PaneViewportLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
+
+    private var surfaceWidth = 0
+    private var surfaceHeight = 0
+    private var surfaceScale = 1f
 
     init {
         clipChildren = true
@@ -35,25 +25,35 @@ class PaneViewportLayout @JvmOverloads constructor(
     }
 
     /**
-     * Kept for source compatibility with existing call sites in
-     * MainActivity — this implementation no longer uses a reference size or
-     * scale factor, so width/height/scale are accepted but ignored. Always
-     * returns false (no layout change to react to).
+     * Uses a fixed logical surface and a uniform visual scale. Returning true
+     * means the layout parameters changed and the caller may refresh markers.
      */
-    fun setSurfaceSize(width: Int, height: Int, scale: Float): Boolean = false
+    fun setSurfaceSize(width: Int, height: Int, scale: Float): Boolean {
+        val nextWidth = width.coerceAtLeast(0)
+        val nextHeight = height.coerceAtLeast(0)
+        val nextScale = scale.coerceIn(0.01f, 1f)
+        val changed = surfaceWidth != nextWidth || surfaceHeight != nextHeight || surfaceScale != nextScale
+        surfaceWidth = nextWidth
+        surfaceHeight = nextHeight
+        surfaceScale = nextScale
+        if (changed) requestLayout()
+        return changed
+    }
+
+    fun resetSurfaceSize() {
+        setSurfaceSize(0, 0, 1f)
+    }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val hostWidth = resolveHostSize(widthMeasureSpec, suggestedMinimumWidth)
         val hostHeight = resolveHostSize(heightMeasureSpec, suggestedMinimumHeight)
         val child = getChildAt(0)
+        val childWidth = if (surfaceWidth > 0) surfaceWidth else hostWidth
+        val childHeight = if (surfaceHeight > 0) surfaceHeight else hostHeight
         if (child != null && child.visibility != View.GONE) {
-            child.scaleX = 1f
-            child.scaleY = 1f
-            child.translationX = 0f
-            child.translationY = 0f
             child.measure(
-                MeasureSpec.makeMeasureSpec(hostWidth, MeasureSpec.EXACTLY),
-                MeasureSpec.makeMeasureSpec(hostHeight, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(childWidth, MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(childHeight, MeasureSpec.EXACTLY),
             )
         }
         setMeasuredDimension(hostWidth, hostHeight)
@@ -62,7 +62,17 @@ class PaneViewportLayout @JvmOverloads constructor(
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         val child = getChildAt(0) ?: return
         if (child.visibility == View.GONE) return
-        child.layout(0, 0, measuredWidth, measuredHeight)
+        val childWidth = if (surfaceWidth > 0) surfaceWidth else measuredWidth
+        val childHeight = if (surfaceHeight > 0) surfaceHeight else measuredHeight
+        child.layout(0, 0, childWidth, childHeight)
+        child.pivotX = 0f
+        child.pivotY = 0f
+        child.scaleX = if (surfaceWidth > 0) surfaceScale else 1f
+        child.scaleY = if (surfaceHeight > 0) surfaceScale else 1f
+        val renderedWidth = childWidth * child.scaleX
+        val renderedHeight = childHeight * child.scaleY
+        child.translationX = ((measuredWidth - renderedWidth) / 2f).coerceAtLeast(0f)
+        child.translationY = ((measuredHeight - renderedHeight) / 2f).coerceAtLeast(0f)
     }
 
     private fun resolveHostSize(spec: Int, fallback: Int): Int = when (MeasureSpec.getMode(spec)) {
