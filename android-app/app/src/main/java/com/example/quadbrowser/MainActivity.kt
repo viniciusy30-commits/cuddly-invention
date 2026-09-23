@@ -80,7 +80,6 @@ class MainActivity : AppCompatActivity() {
         const val PANE_COLOR_PREFIX = "pane_color_"
         const val PANE_AVATAR_PREFIX = "pane_avatar_"
         const val AUTO_PRESET_PREFIX = "auto_preset_"
-        const val AUTO_DELETED_PRESET_PREFIX = "auto_deleted_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
         const val VIEW_MODE_KEY = "view_mode_paged"
@@ -143,7 +142,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pagerDots: List<TextView>
     private var fullscreenPaneIndex: Int? = null
     private var paneOrder = mutableListOf(0, 1, 2, 3)
-    private val defaultPaneNames = listOf("Conta principal", "Conta secundária", "Conta de trocas", "Conta de farm")
+    private val defaultPaneNames = listOf("Instância 1", "Instância 2", "Instância 3", "Instância 4")
     private val paneColorOptions = listOf("#5869DD", "#D94F66", "#00A896", "#F0A202", "#7B61FF")
     private var pendingGoogleAccountRequest: Pair<Int, String>? = null
     private var isDarkTheme = false
@@ -333,7 +332,7 @@ class MainActivity : AppCompatActivity() {
     private fun paneName(index: Int): String = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
         .getString(PANE_NAME_PREFIX + index, null)
         ?.takeIf { it.isNotBlank() }
-        ?: defaultPaneNames.getOrElse(index) { "Conta " + (index + 1) }
+        ?: defaultPaneNames.getOrElse(index) { "Instância " + (index + 1) }
 
     private fun paneColor(index: Int): String = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
         .getString(PANE_COLOR_PREFIX + index, null)
@@ -412,7 +411,7 @@ class MainActivity : AppCompatActivity() {
             .setNegativeButton(R.string.cancel, null)
             .setPositiveButton(R.string.save_identity) { _, _ ->
                 val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
-                val safeName = nameInput.text.toString().trim().ifBlank { defaultPaneNames[index] }
+                val safeName = nameInput.text.toString().trim().ifBlank { "Instância " + (index + 1) }
                 val safeAvatar = avatarInput.text.toString().trim().ifBlank { (index + 1).toString() }
                 preferences.edit()
                     .putString(PANE_NAME_PREFIX + index, safeName)
@@ -697,7 +696,7 @@ class MainActivity : AppCompatActivity() {
             setPaneActionState(paneIndex)
         }
         fullscreenOverlay.requestLayout()
-        pane.clickLayer.post { renderAutoClickEditor(index) }
+        pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
     }
 
     private fun exitFullscreenPane() {
@@ -975,7 +974,7 @@ class MainActivity : AppCompatActivity() {
             private fun refreshAutoClickEditors() {
         panes.forEachIndexed { index, pane ->
             if (pane.isAutoClickEditing) {
-                pane.clickLayer.post { renderAutoClickEditor(index) }
+                pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
             }
         }
     }
@@ -1028,10 +1027,22 @@ class MainActivity : AppCompatActivity() {
           pane.isAutoClickEditing = true
           pane.clickLayer.visibility = View.VISIBLE
           pane.clickLayer.isClickable = false
-          pane.clickLayer.post { renderAutoClickEditor(index) }
+          pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
       }
 
-      private fun hideAutoClickerEditor(index: Int, stop: Boolean = true) {
+      private fun renderAutoClickEditorWhenReady(index: Int) {
+        val pane = panes.getOrNull(index) ?: return
+        pane.clickLayer.post {
+            if (!pane.isAutoClickEditing) return@post
+            if (pane.clickLayer.width <= 0 || pane.clickLayer.height <= 0) {
+                pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
+            } else {
+                renderAutoClickEditor(index)
+            }
+        }
+    }
+
+    private fun hideAutoClickerEditor(index: Int, stop: Boolean = true) {
         val pane = panes.getOrNull(index) ?: return
         if (stop) stopAutoClicker(index)
         pane.isAutoClickEditing = false
@@ -1045,7 +1056,7 @@ class MainActivity : AppCompatActivity() {
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isAutoClickEditing || pane.isAutoClicking) return
           pane.autoClickPoints.add(ClickPoint(0.5f, 0.5f))
-          renderAutoClickEditor(index)
+          renderAutoClickEditorWhenReady(index)
       }
 
       private fun removeAllAutoClickPoints(index: Int) {
@@ -1054,16 +1065,8 @@ class MainActivity : AppCompatActivity() {
           pane.autoClickPoints.clear()
           pane.isAutoClickEditing = true
           pane.clickLayer.visibility = View.VISIBLE
-          renderAutoClickEditor(index)
+          renderAutoClickEditorWhenReady(index)
       }
-
-    private fun builtInAutoClickPresets(): List<AutoClickPreset> = listOf(
-        AutoClickPreset("Farm rápido", listOf(ClickPoint(0.5f, 0.5f, 250L), ClickPoint(0.7f, 0.5f, 250L))),
-        AutoClickPreset("Farm lento", listOf(ClickPoint(0.5f, 0.5f, 1800L), ClickPoint(0.7f, 0.5f, 1800L))),
-        AutoClickPreset("Evento", listOf(ClickPoint(0.5f, 0.5f, 1000L))),
-        AutoClickPreset("Batalha", listOf(ClickPoint(0.35f, 0.5f, 400L), ClickPoint(0.65f, 0.5f, 400L))),
-        AutoClickPreset("Coleta", listOf(ClickPoint(0.5f, 0.7f, 750L), ClickPoint(0.5f, 0.35f, 750L))),
-    )
 
     private fun customAutoClickPresets(index: Int): List<AutoClickPreset> {
         val raw = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getString(AUTO_PRESET_PREFIX + index, null) ?: return emptyList()
@@ -1085,15 +1088,7 @@ class MainActivity : AppCompatActivity() {
         }.getOrDefault(emptyList()).filter { it.name.isNotBlank() }
     }
 
-    private fun deletedBuiltInAutoClickPresetNames(index: Int): Set<String> {
-        val raw = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).getString(AUTO_DELETED_PRESET_PREFIX + index, null) ?: return emptySet()
-        return raw.split("\u001F").filter { it.isNotBlank() }.toSet()
-    }
-
-    private fun availableAutoClickPresets(index: Int): List<AutoClickPreset> {
-        val deletedNames = deletedBuiltInAutoClickPresetNames(index)
-        return builtInAutoClickPresets().filterNot { it.name in deletedNames } + customAutoClickPresets(index)
-    }
+    private fun availableAutoClickPresets(index: Int): List<AutoClickPreset> = customAutoClickPresets(index)
 
     private fun saveAutoClickPreset(index: Int, name: String) {
         val pane = panes.getOrNull(index) ?: return
@@ -1145,33 +1140,27 @@ class MainActivity : AppCompatActivity() {
         pane.autoClickPoints = preset.points.map { ClickPoint(it.x, it.y, it.intervalMs) }.toMutableList()
         pane.isAutoClickEditing = true
         pane.clickLayer.visibility = View.VISIBLE
-        renderAutoClickEditor(index)
+        renderAutoClickEditorWhenReady(index)
         Toast.makeText(this, getString(R.string.auto_clicker_preset_applied, preset.name), Toast.LENGTH_SHORT).show()
     }
 
     private fun deleteAutoClickPreset(index: Int, name: String) {
         val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
-        val builtIn = builtInAutoClickPresets().any { it.name.equals(name, ignoreCase = true) }
-        if (builtIn) {
-            val deletedNames = deletedBuiltInAutoClickPresetNames(index).toMutableSet().apply { add(name) }
-            preferences.edit().putString(AUTO_DELETED_PRESET_PREFIX + index, deletedNames.joinToString("\u001F")).apply()
+        val remaining = customAutoClickPresets(index).filterNot { it.name.equals(name, ignoreCase = true) }
+        if (remaining.isEmpty()) {
+            preferences.edit().remove(AUTO_PRESET_PREFIX + index).apply()
         } else {
-            val remaining = customAutoClickPresets(index).filterNot { it.name.equals(name, ignoreCase = true) }
-            if (remaining.isEmpty()) {
-                preferences.edit().remove(AUTO_PRESET_PREFIX + index).apply()
-            } else {
-                val array = JSONArray()
-                remaining.forEach { preset ->
-                    val presetObject = JSONObject().put("name", preset.name)
-                    val points = JSONArray()
-                    preset.points.forEach { point ->
-                        points.put(JSONObject().put("x", point.x).put("y", point.y).put("intervalMs", point.intervalMs))
-                    }
-                    presetObject.put("points", points)
-                    array.put(presetObject)
+            val array = JSONArray()
+            remaining.forEach { preset ->
+                val presetObject = JSONObject().put("name", preset.name)
+                val points = JSONArray()
+                preset.points.forEach { point ->
+                    points.put(JSONObject().put("x", point.x).put("y", point.y).put("intervalMs", point.intervalMs))
                 }
-                preferences.edit().putString(AUTO_PRESET_PREFIX + index, array.toString()).apply()
+                presetObject.put("points", points)
+                array.put(presetObject)
             }
+            preferences.edit().putString(AUTO_PRESET_PREFIX + index, array.toString()).apply()
         }
         Toast.makeText(this, getString(R.string.auto_clicker_preset_deleted, name), Toast.LENGTH_SHORT).show()
     }
@@ -1199,13 +1188,17 @@ class MainActivity : AppCompatActivity() {
     }
     private fun showPresetDialog(index: Int) {
         val presets = availableAutoClickPresets(index)
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(R.string.auto_clicker_presets)
-            .setItems(presets.map { it.name }.toTypedArray()) { _, which -> applyAutoClickPreset(index, presets[which]) }
             .setPositiveButton(R.string.auto_clicker_delete_preset) { _, _ -> showDeletePresetDialog(index) }
             .setNeutralButton(R.string.auto_clicker_save_preset) { _, _ -> showSavePresetDialog(index) }
             .setNegativeButton(R.string.cancel, null)
-            .show()
+        if (presets.isEmpty()) {
+            dialog.setMessage(R.string.auto_clicker_no_presets)
+        } else {
+            dialog.setItems(presets.map { it.name }.toTypedArray()) { _, which -> applyAutoClickPreset(index, presets[which]) }
+        }
+        dialog.show()
     }
 
       private fun showPointIntervalDialog(index: Int, pointIndex: Int) {
@@ -1255,7 +1248,7 @@ class MainActivity : AppCompatActivity() {
                       Toast.makeText(this, R.string.auto_clicker_invalid_point_interval, Toast.LENGTH_SHORT).show()
                   } else {
                       point.intervalMs = intervalMs
-                      renderAutoClickEditor(index)
+                      renderAutoClickEditorWhenReady(index)
                       dialog.dismiss()
                   }
               }
@@ -1273,9 +1266,9 @@ class MainActivity : AppCompatActivity() {
           val pane = panes.getOrNull(index) ?: return
           if (!pane.isAutoClickEditing) return
           val layer = pane.clickLayer
+          layer.visibility = View.VISIBLE
           val layerWidth = layer.width.coerceAtLeast(1).toFloat()
           val layerHeight = layer.height.coerceAtLeast(1).toFloat()
-          layer.visibility = View.VISIBLE
           layer.removeAllViews()
            val markerSize = dp(28)
           pane.autoClickPoints.forEachIndexed { pointIndex, point ->
@@ -1333,7 +1326,7 @@ class MainActivity : AppCompatActivity() {
                           } else if (!longPressTriggered && pointIndex in pane.autoClickPoints.indices) {
                               pane.autoClickPoints.removeAt(pointIndex)
                               Toast.makeText(this, R.string.auto_clicker_point_removed, Toast.LENGTH_SHORT).show()
-                              renderAutoClickEditor(index)
+                              renderAutoClickEditorWhenReady(index)
                           }
                           true
                       }
@@ -1377,7 +1370,7 @@ layer.addView(marker)
                if (pane.isAutoClicking) {
                    stopAutoClicker(index, true)
                    pane.isAutoClickEditing = true
-                   renderAutoClickEditor(index)
+                   renderAutoClickEditorWhenReady(index)
                } else {
                    startAutoClicker(index)
                }
@@ -1424,7 +1417,11 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
           }
           pane.autoClickRunnable = runnable
           setPaneActionState(index)
-          autoClickHandler.post(runnable)
+          pane.clickLayer.post {
+              if (!pane.isAutoClicking) return@post
+              renderAutoClickEditor(index)
+              autoClickHandler.post(runnable)
+          }
           Toast.makeText(this, R.string.auto_clicker_started, Toast.LENGTH_SHORT).show()
       }
 
@@ -1559,7 +1556,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     }
 
     private fun updateThemeToggle(button: ImageButton) {
-            button.setImageResource(if (isDarkTheme) R.drawable.ic_sun else R.drawable.ic_moon)
+            button.setImageResource(if (isDarkTheme) R.drawable.ic_moon else R.drawable.ic_sun)
             button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
         }
 
