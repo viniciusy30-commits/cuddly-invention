@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.graphics.Typeface
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.Configuration
@@ -137,7 +138,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fullscreenOverlay: FrameLayout
     private lateinit var instancePager: PagedInstancesLayout
     private lateinit var pagerSwitchStrip: View
-    private lateinit var pagerDots: List<ImageButton>
+    private lateinit var pagerPreviousButton: TextView
+    private lateinit var pagerNextButton: TextView
+    private lateinit var pagerDots: List<TextView>
     private var fullscreenPaneIndex: Int? = null
     private var paneOrder = mutableListOf(0, 1, 2, 3)
     private val defaultPaneNames = listOf("Conta principal", "Conta secundária", "Conta de trocas", "Conta de farm")
@@ -163,6 +166,8 @@ class MainActivity : AppCompatActivity() {
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
         instancePager = findViewById(R.id.browser_pager)
         pagerSwitchStrip = findViewById(R.id.pager_switch_strip)
+        pagerPreviousButton = findViewById(R.id.pager_previous)
+        pagerNextButton = findViewById(R.id.pager_next)
         pagerDots = listOf(
             findViewById(R.id.pager_dot_1),
             findViewById(R.id.pager_dot_2),
@@ -172,12 +177,14 @@ class MainActivity : AppCompatActivity() {
         pagerDots.forEachIndexed { index, dot ->
             dot.setOnClickListener { instancePager.setCurrentPage(index, true) }
         }
+        pagerPreviousButton.setOnClickListener { movePagerBy(-1) }
+        pagerNextButton.setOnClickListener { movePagerBy(1) }
         setupPagerSwitchStripDrag()
         val preferences = getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE)
         isPagerMode = preferences.getBoolean(VIEW_MODE_KEY, false)
         instancePager.setPageChangedListener {
             refreshPagerPaneThumbnails()
-            updatePagerDotsHighlight()
+            updatePagerDotsAppearance()
         }
         findViewById<View>(R.id.browser_content).addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             refreshGridPaneThumbnails()
@@ -348,6 +355,7 @@ class MainActivity : AppCompatActivity() {
             setColor(color)
         }
         refreshPaneHeader(index)
+        if (::pagerDots.isInitialized) updatePagerDotsAppearance()
     }
 
     private fun refreshPaneHeader(index: Int) {
@@ -828,14 +836,40 @@ class MainActivity : AppCompatActivity() {
     private fun setPagerVisible(visible: Boolean) {
         instancePager.visibility = if (visible) View.VISIBLE else View.GONE
         pagerSwitchStrip.visibility = if (visible) View.VISIBLE else View.GONE
-        if (visible) updatePagerDotsHighlight()
+        if (visible) updatePagerDotsAppearance()
     }
 
-    /** Highlights the dot matching the pager's currently visible instance. */
-    private fun updatePagerDotsHighlight() {
-        pagerDots.forEachIndexed { index, dot ->
-            dot.alpha = if (index == instancePager.currentPage) 1f else 0.35f
+    /** Updates labels, colors and selection state for the instance switcher. */
+    private fun updatePagerDotsAppearance() {
+        pagerDots.forEachIndexed { position, dot ->
+            val identity = paneOrder.getOrNull(position) ?: return@forEachIndexed
+            val isSelected = position == instancePager.currentPage
+            val color = runCatching { Color.parseColor(paneColor(identity)) }
+                .getOrDefault(getColor(R.color.accent))
+            dot.text = paneAvatar(identity).ifBlank { (identity + 1).toString() }.take(3)
+            dot.setTextColor(Color.WHITE)
+            dot.setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            dot.includeFontPadding = false
+            dot.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(color)
+                setStroke(dp(if (isSelected) 2 else 1), if (isSelected) Color.WHITE else Color.argb(100, 255, 255, 255))
+            }
+            dot.alpha = 1f
+            dot.contentDescription = getString(R.string.pager_switch_to_instance_named, paneName(identity))
         }
+        val canSwitch = instancePager.childCount > 1
+        pagerPreviousButton.isEnabled = canSwitch
+        pagerNextButton.isEnabled = canSwitch
+        pagerPreviousButton.alpha = if (canSwitch) 1f else 0.45f
+        pagerNextButton.alpha = if (canSwitch) 1f else 0.45f
+    }
+
+    private fun movePagerBy(delta: Int) {
+        val pageCount = instancePager.childCount
+        if (pageCount <= 1) return
+        val target = (instancePager.currentPage + delta + pageCount) % pageCount
+        instancePager.setCurrentPage(target, true)
     }
 
     /**
