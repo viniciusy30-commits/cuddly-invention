@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "390093242037",
+    "project_id": "multiaccount-d64fd",
+    "storage_bucket": "multiaccount-d64fd.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:390093242037:android:3addb0ebc73b2ac34ec8fc",
+        "android_client_info": {
+          "package_name": "com.example.quadbrowser"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4cubziY-a-WDIwWc5UiAF8nOU4OanOOA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
