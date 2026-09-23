@@ -810,13 +810,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun captureFullscreenReference() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) return
+        if (isCompactWindow()) return
         val reference = fullscreenOverlay.takeIf { it.width > 1 && it.height > 1 }
             ?: findViewById<View>(R.id.browser_content)
         if (reference.width > 1 && reference.height > 1) {
             fullscreenReferenceWidth = reference.width
             fullscreenReferenceHeight = reference.height
         }
+    }
+
+    /**
+     * PiP and Android freeform/split-screen windows are already compact
+     * surfaces. Their WebViews must use their measured bounds directly.
+     * Scaling a full-screen reference into these windows produces the
+     * shrunken, centered content seen in the broken layout.
+     */
+    private fun isCompactWindow(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N &&
+            (isInPictureInPictureMode || isInMultiWindowMode)
+
+    private fun applyActualSizeWebViewViewport(pane: BrowserPane) {
+        pane.thumbnailHost.resetSurfaceSize()
+        pane.gridScalePercent = null
+        pane.gridTransformApplied = true
+        pane.gridReferenceWidth = pane.thumbnailHost.width
+        pane.gridReferenceHeight = pane.thumbnailHost.height
+        pane.gridHostWidth = pane.thumbnailHost.width
+        pane.gridHostHeight = pane.thumbnailHost.height
+        pane.gridScale = 1f
+        pane.webView.settings.useWideViewPort = true
+        pane.webView.settings.loadWithOverviewMode = false
+        pane.webView.setInitialScale(0)
+        restoreDefaultPageViewport(pane.webView)
+        applyWebViewZoom(pane, 100)
     }
 
     private fun applyScaledPaneViewport(pane: BrowserPane) {
@@ -867,9 +893,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyGridWebViewViewport(pane: BrowserPane) {
-        // Keep the page at the fullscreen viewport and scale the whole pane,
-        // including the auto-click layer, to the available cell/PiP size.
-        applyCompactWebViewViewport(pane)
+        if (isCompactWindow()) {
+            applyActualSizeWebViewViewport(pane)
+        } else {
+            // Grid thumbnails can use a stable logical surface so the four
+            // instances remain visually comparable at the same scale.
+            applyCompactWebViewViewport(pane)
+        }
     }
 
     /** Keeps the pager's visibility and its toolbar switch strip in sync. */
@@ -1005,7 +1035,10 @@ class MainActivity : AppCompatActivity() {
             readyPanes.forEach { pane ->
                 pane.gridHostWidth = pane.thumbnailHost.width
                 pane.gridHostHeight = pane.thumbnailHost.height
-                applyGridWebViewViewport(pane)
+                // Pager pages are the primary view, not thumbnails. Measure
+                // the WebView to the page that is actually available so one
+                // instance fills the screen in normal, freeform and PiP modes.
+                applyActualSizeWebViewViewport(pane)
             }
         } finally {
             isRefreshingGridPaneThumbnails = false
@@ -1616,7 +1649,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               return
           }
 
-          captureFullscreenReference()
           val content = findViewById<View>(R.id.browser_content)
           val width = content.width.coerceAtLeast(1)
           val height = content.height.coerceAtLeast(1)
@@ -1796,8 +1828,11 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode)
         window.decorView.post {
+            // PiP has its own compact viewport. Re-apply the active layout so
+            // the WebView is measured against the actual PiP bounds instead
+            // of keeping a scaled copy of the full-screen surface.
             if (!isInPictureInPictureMode) captureFullscreenReference()
-            refreshGridPaneThumbnails()
+            applyPaneLayout()
             refreshAutoClickEditors()
         }
     }

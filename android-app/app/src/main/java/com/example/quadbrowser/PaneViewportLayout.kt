@@ -6,10 +6,10 @@ import android.view.View
 import android.widget.FrameLayout
 
 /**
- * Hosts a pane at its fullscreen surface size and scales it uniformly into
- * the available cell or Picture-in-Picture window. The WebView and its
- * auto-click overlay therefore keep the same coordinate space as fullscreen;
- * only the rendered pixels are reduced.
+ * Hosts a pane either at its measured size or on an explicit logical surface.
+ * The latter is used only for the four-pane grid, where a stable thumbnail
+ * coordinate space is useful. Pager, freeform and PiP layouts reset the
+ * surface so the WebView fills the bounds Android actually provides.
  */
 class PaneViewportLayout @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null, defStyleAttr: Int = 0,
