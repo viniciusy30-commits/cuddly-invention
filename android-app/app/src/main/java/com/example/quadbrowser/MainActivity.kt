@@ -53,6 +53,7 @@ import androidx.webkit.WebSettingsCompat
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
+import kotlin.math.min
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.webkit.WebViewCompat
@@ -151,6 +152,11 @@ class MainActivity : AppCompatActivity() {
     private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isRefreshingGridPaneThumbnails = false
     private var isPagerMode = false
+    // Keep the fullscreen content viewport stable while Android shrinks the activity for PiP.
+    // Compact panes are rendered from this reference and scaled uniformly, so WebView layout
+    // and auto-click coordinates do not change when the window size changes.
+    private var fullscreenReferenceWidth = 0
+    private var fullscreenReferenceHeight = 0
     private var accessGateOverlay: View? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -803,17 +809,54 @@ class MainActivity : AppCompatActivity() {
         view.postDelayed({ view.evaluateJavascript(script, null) }, 250L)
     }
 
+    private fun captureFullscreenReference() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && isInPictureInPictureMode) return
+        val reference = fullscreenOverlay.takeIf { it.width > 1 && it.height > 1 }
+            ?: findViewById<View>(R.id.browser_content)
+        if (reference.width > 1 && reference.height > 1) {
+            fullscreenReferenceWidth = reference.width
+            fullscreenReferenceHeight = reference.height
+        }
+    }
+
+    private fun applyScaledPaneViewport(pane: BrowserPane) {
+        val hostWidth = pane.thumbnailHost.width
+        val hostHeight = pane.thumbnailHost.height
+        if (hostWidth <= 1 || hostHeight <= 1) return
+
+        if (fullscreenReferenceWidth <= 1 || fullscreenReferenceHeight <= 1) {
+            captureFullscreenReference()
+        }
+        val referenceWidth = fullscreenReferenceWidth.coerceAtLeast(hostWidth)
+        val referenceHeight = fullscreenReferenceHeight.coerceAtLeast(hostHeight)
+        // One uniform scale preserves the fullscreen aspect ratio; any leftover
+        // space is letterboxed instead of compressing the page horizontally/vertically.
+        val scale = min(
+            hostWidth.toFloat() / referenceWidth.toFloat(),
+            hostHeight.toFloat() / referenceHeight.toFloat(),
+        ).coerceIn(0.01f, 1f)
+
+        pane.gridReferenceWidth = referenceWidth
+        pane.gridReferenceHeight = referenceHeight
+        pane.gridHostWidth = hostWidth
+        pane.gridHostHeight = hostHeight
+        pane.gridScale = scale
+        pane.gridTransformApplied = pane.thumbnailHost.setSurfaceSize(referenceWidth, referenceHeight, scale)
+    }
+
     private fun applyCompactWebViewViewport(pane: BrowserPane) {
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
-        pane.webView.settings.useWideViewPort = false
+        pane.webView.settings.useWideViewPort = true
         pane.webView.settings.loadWithOverviewMode = false
         pane.webView.setInitialScale(0)
         restoreDefaultPageViewport(pane.webView)
         applyWebViewZoom(pane, 100)
+        applyScaledPaneViewport(pane)
     }
 
     private fun applyFullscreenWebViewViewport(pane: BrowserPane) {
+        pane.thumbnailHost.resetSurfaceSize()
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
         pane.webView.settings.useWideViewPort = true
@@ -824,10 +867,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyGridWebViewViewport(pane: BrowserPane) {
-        // The page renders responsively at the real size of its grid cell —
-        // the same as it would on a small phone screen — instead of being
-        // told it's fullscreen and then visually shrunk. Simpler and far
-        // more stable; see PaneViewportLayout's class doc for why.
+        // Keep the page at the fullscreen viewport and scale the whole pane,
+        // including the auto-click layer, to the available cell/PiP size.
         applyCompactWebViewViewport(pane)
     }
 
@@ -939,9 +980,8 @@ class MainActivity : AppCompatActivity() {
         val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
         if (readyPanes.isEmpty()) return
 
-        // Each pane's WebView simply renders at its own cell's real size —
-        // no reference/fullscreen sizing, no visual scale. See
-        // PaneViewportLayout's class doc for why this is intentional.
+        // Render each pane from the fullscreen reference surface and scale it
+        // uniformly into the cell. This keeps page layout and marker positions stable.
         isRefreshingGridPaneThumbnails = true
         try {
             grid.clipChildren = true
@@ -965,7 +1005,7 @@ class MainActivity : AppCompatActivity() {
             readyPanes.forEach { pane ->
                 pane.gridHostWidth = pane.thumbnailHost.width
                 pane.gridHostHeight = pane.thumbnailHost.height
-                applyFullscreenWebViewViewport(pane)
+                applyGridWebViewViewport(pane)
             }
         } finally {
             isRefreshingGridPaneThumbnails = false
@@ -1288,6 +1328,7 @@ class MainActivity : AppCompatActivity() {
               var startRawY = 0f
               var startViewX = 0f
               var startViewY = 0f
+              var gestureScale = 1f
               var moved = false
               var longPressTriggered = false
               var longPressAction: Runnable? = null
@@ -1299,6 +1340,7 @@ class MainActivity : AppCompatActivity() {
                           startRawY = event.rawY
                           startViewX = view.x
                           startViewY = view.y
+                          gestureScale = pane.gridScale.takeIf { it > 0f } ?: 1f
                           moved = false
                           longPressTriggered = false
                           longPressAction = Runnable {
@@ -1310,8 +1352,8 @@ class MainActivity : AppCompatActivity() {
                           true
                       }
                       MotionEvent.ACTION_MOVE -> {
-                          val dx = event.rawX - startRawX
-                          val dy = event.rawY - startRawY
+                          val dx = (event.rawX - startRawX) / gestureScale
+                          val dy = (event.rawY - startRawY) / gestureScale
                           moved = moved || abs(dx) > dp(6) || abs(dy) > dp(6)
                           if (moved) longPressAction?.let(autoClickHandler::removeCallbacks)
                           view.x = (startViewX + dx).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
@@ -1574,6 +1616,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               return
           }
 
+          captureFullscreenReference()
           val content = findViewById<View>(R.id.browser_content)
           val width = content.width.coerceAtLeast(1)
           val height = content.height.coerceAtLeast(1)
@@ -1749,6 +1792,15 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               stopService(Intent(this, AutoClickForegroundService::class.java))
           }
       }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode)
+        window.decorView.post {
+            if (!isInPictureInPictureMode) captureFullscreenReference()
+            refreshGridPaneThumbnails()
+            refreshAutoClickEditors()
+        }
+    }
 
     override fun onPause() {
         persistAllPaneState()
