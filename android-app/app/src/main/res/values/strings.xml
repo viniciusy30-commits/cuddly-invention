@@ -20,7 +20,7 @@
     <string name="instance_active">Instância %1$d • em execução</string>
     <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
-        <string name="minimize_to_floating_bubble">Minimizar para a bolha flutuante</string>
+        <string name="minimize_to_floating_bubble">Abrir em janela flutuante</string>
         <string name="floating_bubble_permission_required">Permita a sobreposição do Multi Account para usar o ícone flutuante.</string>
         <string name="floating_bubble_description">Abrir o Multi Account</string>
     <string name="view_mode_switch_to_paged">Mostrar uma instância por aba</string>
@@ -121,4 +121,5 @@
       <string name="clear_data_message">Isso apagará cookies, histórico, cache, armazenamento local e dados de formulário das quatro instâncias.</string>
       <string name="clear_data_confirm">Limpar</string>
       <string name="clear_data_done">Cookies, histórico e dados das instâncias foram apagados.</string>
-    </resources>
+        <string name="picture_in_picture_unavailable">A janela flutuante exige Android 8.0 ou superior.</string>
+</resources>
