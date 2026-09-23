@@ -50,21 +50,20 @@
             android:orientation="horizontal"
             android:visibility="gone">
 
-            <TextView
-                android:id="@+id/pager_previous"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
-                android:background="@drawable/bg_icon_button"
-                android:clickable="true"
-                android:contentDescription="@string/pager_previous"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="‹"
-                android:textColor="@color/text_primary"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+            <ImageButton
+                  android:id="@+id/pager_previous"
+                  android:layout_width="30dp"
+                  android:layout_height="30dp"
+                  android:layout_marginStart="2dp"
+                  android:layout_marginEnd="2dp"
+                  android:background="@drawable/bg_icon_button"
+                  android:clickable="true"
+                  android:contentDescription="@string/pager_previous"
+                  android:focusable="true"
+                  android:padding="5dp"
+                  android:scaleType="centerInside"
+                  android:src="@drawable/ic_chevron_left"
+                  android:tint="@color/text_primary" />
 
             <TextView
                 android:id="@+id/pager_dot_1"
@@ -134,21 +133,20 @@
                 android:textSize="11sp"
                 android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/pager_next"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="2dp"
-                android:background="@drawable/bg_icon_button"
-                android:clickable="true"
-                android:contentDescription="@string/pager_next"
-                android:focusable="true"
-                android:gravity="center"
-                android:text="›"
-                android:textColor="@color/text_primary"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+            <ImageButton
+                  android:id="@+id/pager_next"
+                  android:layout_width="30dp"
+                  android:layout_height="30dp"
+                  android:layout_marginStart="2dp"
+                  android:layout_marginEnd="2dp"
+                  android:background="@drawable/bg_icon_button"
+                  android:clickable="true"
+                  android:contentDescription="@string/pager_next"
+                  android:focusable="true"
+                  android:padding="5dp"
+                  android:scaleType="centerInside"
+                  android:src="@drawable/ic_chevron_right"
+                  android:tint="@color/text_primary" />
         </LinearLayout>
     </LinearLayout>
 
