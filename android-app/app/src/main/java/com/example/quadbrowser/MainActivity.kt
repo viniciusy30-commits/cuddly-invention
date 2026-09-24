@@ -92,6 +92,7 @@ class MainActivity : AppCompatActivity() {
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
         const val VIEW_MODE_KEY = "view_mode_paged"
+        const val ENERGY_SAVER_STATE_KEY = "energy_saver_enabled"
         const val GOOGLE_ACCOUNT_PICKER_REQUEST = 2301
         const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
@@ -150,6 +151,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var pagerNextButton: ImageButton
     private lateinit var pagerDots: List<TextView>
     private var fullscreenPaneIndex: Int? = null
+    private lateinit var energySaverOverlay: FrameLayout
+    private var isEnergySaverEnabled = false
     private var paneOrder = mutableListOf(0, 1, 2, 3)
     private val defaultPaneNames = (1..4).map { "Instância $it" }
     private val paneColorOptions = listOf(
@@ -211,6 +214,13 @@ class MainActivity : AppCompatActivity() {
         requestNotificationPermissionIfNeeded()
 
         fullscreenOverlay = findViewById(R.id.fullscreen_overlay)
+        energySaverOverlay = findViewById(R.id.energy_saver_overlay)
+        findViewById<ImageButton>(R.id.energy_saver_toggle).apply {
+            updateEnergySaverToggle(this)
+            setOnClickListener { setEnergySaverEnabled(!isEnergySaverEnabled) }
+        }
+        findViewById<Button>(R.id.energy_saver_exit).setOnClickListener { setEnergySaverEnabled(false) }
+        energySaverOverlay.setOnClickListener { setEnergySaverEnabled(false) }
         instancePager = findViewById(R.id.browser_pager)
         pagerSwitchStrip = findViewById(R.id.pager_switch_strip)
         pagerPreviousButton = findViewById(R.id.pager_previous)
@@ -353,6 +363,9 @@ class MainActivity : AppCompatActivity() {
 
         paneOrder = loadPaneOrder(savedInstanceState)
           savedInstanceState?.getInt(FULLSCREEN_PANE_KEY, -1)?.takeIf { it in panes.indices }?.let { fullscreenPaneIndex = it }
+         if (savedInstanceState?.getBoolean(ENERGY_SAVER_STATE_KEY, false) == true) {
+             setEnergySaverEnabled(true)
+         }
             applyPaneLayout()
     }
 
@@ -2136,6 +2149,27 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         recreate()
     }
 
+    private fun updateEnergySaverToggle(button: ImageButton) {
+        button.setImageResource(R.drawable.ic_battery_saver)
+        button.setBackgroundResource(if (isEnergySaverEnabled) R.drawable.bg_danger_button else R.drawable.bg_icon_button)
+        button.setColorFilter(getColor(if (isEnergySaverEnabled) R.color.accent else R.color.text_primary))
+        button.contentDescription = getString(if (isEnergySaverEnabled) R.string.energy_saver_disable else R.string.energy_saver_enable)
+    }
+
+    private fun setEnergySaverEnabled(enabled: Boolean) {
+        if (!::energySaverOverlay.isInitialized) return
+        isEnergySaverEnabled = enabled
+        panes.forEach { pane -> pane.webView.alpha = if (enabled) 0f else 1f }
+        energySaverOverlay.visibility = if (enabled) View.VISIBLE else View.GONE
+        if (enabled) {
+            val activeInstances = panes.count { it.isOpen }
+            energySaverOverlay.findViewById<TextView>(R.id.energy_saver_status).text =
+                getString(R.string.energy_saver_status, activeInstances)
+            energySaverOverlay.bringToFront()
+        }
+        updateEnergySaverToggle(findViewById(R.id.energy_saver_toggle))
+    }
+
     private fun updateThemeToggle(button: ImageButton) {
             button.setImageResource(if (isDarkTheme) R.drawable.ic_moon else R.drawable.ic_sun)
             button.contentDescription = getString(if (isDarkTheme) R.string.theme_switch_to_light else R.string.theme_switch_to_dark)
@@ -2211,6 +2245,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     }
 
     private fun configureWebView(webView: WebView, profileName: String, paneIndex: Int) {
+        webView.alpha = if (isEnergySaverEnabled) 0f else 1f
         // Some WebView provider versions only allow a limited number of
         // simultaneous named profiles (or reject certain names outright).
         // Never let a failure here take down the whole app — if the named
@@ -2326,6 +2361,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putIntArray(PANE_ORDER_KEY, paneOrder.toIntArray())
         fullscreenPaneIndex?.let { outState.putInt(FULLSCREEN_PANE_KEY, it) }
+        outState.putBoolean(ENERGY_SAVER_STATE_KEY, isEnergySaverEnabled)
         panes.forEachIndexed { index, pane ->
             outState.putBoolean(paneOpenKey(index), pane.isOpen)
             pane.lastUrl?.let { outState.putString(webViewUrlKey(index), it) }
