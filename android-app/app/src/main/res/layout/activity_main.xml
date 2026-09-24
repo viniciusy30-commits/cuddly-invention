@@ -43,6 +43,14 @@
             android:src="@drawable/ic_minimize" />
 
         <ImageButton
+            android:id="@+id/energy_saver_toggle"
+            style="@style/ThemeButton"
+            android:layout_marginStart="7dp"
+            android:layout_marginEnd="7dp"
+            android:contentDescription="@string/energy_saver_enable"
+            android:src="@drawable/ic_battery_saver" />
+
+        <ImageButton
             android:id="@+id/contact_button"
             style="@style/ThemeButton"
             android:layout_marginStart="7dp"
@@ -730,6 +738,44 @@
             android:background="@color/pane_background"
             android:elevation="12dp"
             android:visibility="gone" />
+        <FrameLayout
+            android:id="@+id/energy_saver_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/black"
+            android:clickable="true"
+            android:elevation="24dp"
+            android:focusable="true"
+            android:visibility="gone">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="24dp">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/energy_saver_active"
+                    android:textColor="@android:color/white"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/energy_saver_status"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/energy_saver_status_placeholder"
+                    android:textColor="#BDBDBD"
+                    android:textSize="14sp" />
+                <Button
+                    android:id="@+id/energy_saver_exit"
+                    style="@style/GlobalActionButton"
+                    android:layout_marginTop="18dp"
+                    android:text="@string/energy_saver_exit" />
+            </LinearLayout>
+        </FrameLayout>
+
 <TextView
             android:id="@+id/profile_error"
             android:layout_width="match_parent"
