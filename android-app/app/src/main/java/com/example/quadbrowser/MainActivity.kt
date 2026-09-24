@@ -141,6 +141,10 @@ class MainActivity : AppCompatActivity() {
         var gridHostHeight: Int = 0,
         var gridScale: Float = 0f,
         var webViewZoomPercent: Int = 100,
+        // Auto-click points are normalized to this stable fullscreen content
+        // surface, then projected into the current grid/PiP WebView bounds.
+        var autoClickReferenceWidth: Float = 0f,
+        var autoClickReferenceHeight: Float = 0f,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -1187,8 +1191,9 @@ class MainActivity : AppCompatActivity() {
         val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
         if (readyPanes.isEmpty()) return
 
-        // Render each pane from the fullscreen reference surface and scale it
-        // uniformly into the cell. This keeps page layout and marker positions stable.
+        // Keep each WebView responsive to its own cell. Auto-click coordinates
+        // are projected independently, so the site is not forced into a
+        // fullscreen-sized surface just to preserve click positions.
         isRefreshingGridPaneThumbnails = true
         try {
             grid.clipChildren = true
@@ -1273,7 +1278,22 @@ class MainActivity : AppCompatActivity() {
           pane.isAutoClickEditing = true
           pane.clickLayer.visibility = View.VISIBLE
           pane.clickLayer.isClickable = false
-          pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
+          captureAutoClickReference(index)
+        pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
+      }
+
+      private fun captureAutoClickReference(index: Int) {
+          val pane = panes.getOrNull(index) ?: return
+          val layerWidth = pane.clickLayer.width
+          val layerHeight = pane.clickLayer.height
+          if (layerWidth <= 1 || layerHeight <= 1) return
+          // Once a fullscreen reference exists, never replace it while the
+          // pane is shown in the smaller 2x2/PiP layout.
+          if (pane.autoClickReferenceWidth > 1f && pane.autoClickReferenceHeight > 1f &&
+              pane.container.parent !== fullscreenOverlay
+          ) return
+          pane.autoClickReferenceWidth = layerWidth.toFloat()
+          pane.autoClickReferenceHeight = layerHeight.toFloat()
       }
 
       private fun renderAutoClickEditorWhenReady(index: Int) {
@@ -1532,8 +1552,11 @@ class MainActivity : AppCompatActivity() {
           if (!pane.isAutoClickEditing) return
           val layer = pane.clickLayer
           layer.visibility = View.VISIBLE
+          captureAutoClickReference(index)
           val layerWidth = layer.width.coerceAtLeast(1).toFloat()
           val layerHeight = layer.height.coerceAtLeast(1).toFloat()
+          val referenceWidth = pane.autoClickReferenceWidth.takeIf { it > 1f } ?: layerWidth
+          val referenceHeight = pane.autoClickReferenceHeight.takeIf { it > 1f } ?: layerHeight
           layer.removeAllViews()
            val markerSize = dp(28)
           pane.autoClickPoints.forEachIndexed { pointIndex, point ->
@@ -1546,8 +1569,10 @@ class MainActivity : AppCompatActivity() {
                    setBackgroundResource(R.drawable.bg_auto_click_marker)
                   elevation = dp(3).toFloat()
                   layoutParams = FrameLayout.LayoutParams(markerSize, markerSize)
-                  x = (point.x.coerceIn(0f, 1f) * layerWidth - markerSize / 2f).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
-                  y = (point.y.coerceIn(0f, 1f) * layerHeight - markerSize / 2f).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
+                  val referenceX = point.x.coerceIn(0f, 1f) * referenceWidth
+                  val referenceY = point.y.coerceIn(0f, 1f) * referenceHeight
+                  x = ((referenceX / referenceWidth) * layerWidth - markerSize / 2f).coerceIn(0f, (layer.width - markerSize).coerceAtLeast(0).toFloat())
+                  y = ((referenceY / referenceHeight) * layerHeight - markerSize / 2f).coerceIn(0f, (layer.height - markerSize).coerceAtLeast(0).toFloat())
               }
               var startRawX = 0f
               var startRawY = 0f
@@ -1588,8 +1613,10 @@ class MainActivity : AppCompatActivity() {
                       MotionEvent.ACTION_UP -> {
                           longPressAction?.let(autoClickHandler::removeCallbacks)
                           if (moved) {
-                              point.x = ((view.x + markerSize / 2f) / layerWidth).coerceIn(0f, 1f)
-                              point.y = ((view.y + markerSize / 2f) / layerHeight).coerceIn(0f, 1f)
+                              val currentX = ((view.x + markerSize / 2f) / layerWidth).coerceIn(0f, 1f)
+                              val currentY = ((view.y + markerSize / 2f) / layerHeight).coerceIn(0f, 1f)
+                              point.x = ((currentX * referenceWidth) / referenceWidth).coerceIn(0f, 1f)
+                              point.y = ((currentY * referenceHeight) / referenceHeight).coerceIn(0f, 1f)
                           } else if (!longPressTriggered && pointIndex in pane.autoClickPoints.indices) {
                               pane.autoClickPoints.removeAt(pointIndex)
                               Toast.makeText(this, R.string.auto_clicker_point_removed, Toast.LENGTH_SHORT).show()
@@ -1677,7 +1704,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                       stopAutoClicker(index)
                       return
                   }
-                  dispatchClick(currentPane.webView, point)
+                  dispatchClick(currentPane, point)
                   currentPane.autoClickIndex = (currentPane.autoClickIndex + 1) % currentPane.autoClickPoints.size
                   autoClickHandler.postDelayed(this, point.intervalMs.coerceAtLeast(100L))
               }
@@ -2117,11 +2144,16 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
            }
        }
 
-      private fun dispatchClick(webView: WebView, point: ClickPoint) {
+      private fun dispatchClick(pane: BrowserPane, point: ClickPoint) {
+          val webView = pane.webView
           val maxX = (webView.width - 1).coerceAtLeast(1).toFloat()
           val maxY = (webView.height - 1).coerceAtLeast(1).toFloat()
-          val x = (point.x.coerceIn(0f, 1f) * maxX).coerceIn(0f, maxX)
-           val y = (point.y.coerceIn(0f, 1f) * maxY).coerceIn(0f, maxY)
+          val referenceWidth = pane.autoClickReferenceWidth.takeIf { it > 1f } ?: maxX
+          val referenceHeight = pane.autoClickReferenceHeight.takeIf { it > 1f } ?: maxY
+          val referenceX = point.x.coerceIn(0f, 1f) * referenceWidth
+          val referenceY = point.y.coerceIn(0f, 1f) * referenceHeight
+          val x = ((referenceX / referenceWidth) * maxX).coerceIn(0f, maxX)
+          val y = ((referenceY / referenceHeight) * maxY).coerceIn(0f, maxY)
           val downTime = SystemClock.uptimeMillis()
           val down = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, x, y, 0)
           val up = MotionEvent.obtain(downTime, downTime + 40L, MotionEvent.ACTION_UP, x, y, 0)
