@@ -145,4 +145,10 @@
       <string name="clear_data_confirm">Limpar</string>
       <string name="clear_data_done">Cookies, histórico e dados das instâncias foram apagados.</string>
         <string name="picture_in_picture_unavailable">A janela flutuante exige Android 8.0 ou superior.</string>
+    <string name="energy_saver_enable">Ativar modo economia</string>
+    <string name="energy_saver_disable">Desativar modo economia</string>
+    <string name="energy_saver_active">Modo economia ativo</string>
+    <string name="energy_saver_status">%1$d instâncias continuam funcionando</string>
+    <string name="energy_saver_status_placeholder">As instâncias continuam funcionando</string>
+    <string name="energy_saver_exit">Mostrar instâncias</string>
 </resources>
