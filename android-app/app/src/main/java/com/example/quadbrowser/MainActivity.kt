@@ -1056,19 +1056,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyGridWebViewViewport(pane: BrowserPane) {
-        // Grid cells and the single/PiP view both want the same thing: the
-        // WebView measured to its host's real, current size. The previous
-        // approach tried to scale a "fullscreen reference" surface down to
-        // fit each cell, but that reference (browser_content) is the size of
-        // the WHOLE 2x2 area, not of a single cell — so the math could end
-        // up computing a scale of 1.0 (no shrink at all), which is exactly
-        // why cells were rendering at full-screen size instead of filling
-        // their own quarter of the screen. Using the real cell size directly
-        // removes that broken math entirely.
-        applyActualSizeWebViewViewport(pane)
-    }
+          val hostWidth = pane.thumbnailHost.width
+          val hostHeight = pane.thumbnailHost.height
+          val content = findViewById<View>(R.id.browser_content)
+          val referenceWidth = (content.width - content.paddingLeft - content.paddingRight).coerceAtLeast(1)
+          val referenceHeight = (content.height - content.paddingTop - content.paddingBottom).coerceAtLeast(1)
+          if (hostWidth <= 1 || hostHeight <= 1 || referenceWidth <= 1 || referenceHeight <= 1) return
 
-    /** Keeps the pager's visibility and its toolbar switch strip in sync. */
+          // Keep every grid pane on the same logical surface used by the
+          // fullscreen view. Only the rendered surface is scaled down to the
+          // cell, so responsive sites keep the fullscreen layout and the
+          // auto-click coordinates remain attached to the same elements.
+          if (pane.gridTransformApplied &&
+              pane.gridHostWidth == hostWidth &&
+              pane.gridHostHeight == hostHeight &&
+              pane.gridReferenceWidth == referenceWidth &&
+              pane.gridReferenceHeight == referenceHeight
+          ) return
+
+          val scaleX = hostWidth.toFloat() / referenceWidth.toFloat()
+          val scaleY = hostHeight.toFloat() / referenceHeight.toFloat()
+          pane.thumbnailHost.setSurfaceSize(referenceWidth, referenceHeight, scaleX, scaleY)
+          pane.gridScalePercent = (minOf(scaleX, scaleY) * 100f).roundToInt().coerceIn(1, 100)
+          pane.gridTransformApplied = true
+          pane.gridReferenceWidth = referenceWidth
+          pane.gridReferenceHeight = referenceHeight
+          pane.gridHostWidth = hostWidth
+          pane.gridHostHeight = hostHeight
+          pane.gridScale = minOf(scaleX, scaleY)
+          pane.webView.settings.useWideViewPort = true
+          pane.webView.settings.loadWithOverviewMode = false
+          pane.webView.setInitialScale(0)
+          restoreDefaultPageViewport(pane.webView)
+          applyWebViewZoom(pane, 100)
+      }
+
+    
     private fun setPagerVisible(visible: Boolean) {
         instancePager.visibility = if (visible) View.VISIBLE else View.GONE
         pagerSwitchStrip.visibility = if (visible) View.VISIBLE else View.GONE
