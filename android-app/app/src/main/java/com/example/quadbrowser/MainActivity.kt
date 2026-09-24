@@ -67,7 +67,15 @@ class MainActivity : AppCompatActivity() {
         private var activityRef: java.lang.ref.WeakReference<MainActivity>? = null
 
         fun keepBackgroundWebViewsAlive() {
-            activityRef?.get()?.panes?.forEach { it.webView.resumeTimers() }
+            val activity = activityRef?.get() ?: return
+            // While the activity is visible, Android already keeps these WebViews
+            // active. Avoid waking the main thread and touching all four renderers
+            // every keep-alive tick during normal foreground use.
+            if (activity.isActivityVisible) return
+            activity.panes
+                .asSequence()
+                .filter { it.isOpen }
+                .forEach { it.webView.resumeTimers() }
         }
 
         const val FULLSCREEN_PANE_KEY = "fullscreen_pane_index"
@@ -827,6 +835,7 @@ class MainActivity : AppCompatActivity() {
         if (parent != null) parent.addView(replacement, childIndex.coerceAtLeast(0))
         pane.webView = replacement
         pane.gridScalePercent = null
+         pane.gridTransformApplied = false
         pane.pendingUrl = savedUrl
         pane.lastTitle = null
         configureWebView(replacement, pane.profileName, index)
@@ -996,13 +1005,24 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyActualSizeWebViewViewport(pane: BrowserPane) {
+        val hostWidth = pane.thumbnailHost.width
+        val hostHeight = pane.thumbnailHost.height
+        // Layout callbacks can arrive several times without changing the cell
+        // size. Reapplying the surface and dispatching two JS resize events for
+        // every pane in that case makes sites such as pokeidle.io do avoidable
+        // work on both the Android and renderer threads.
+        if (pane.gridTransformApplied &&
+            pane.gridHostWidth == hostWidth &&
+            pane.gridHostHeight == hostHeight
+        ) return
+
         pane.thumbnailHost.resetSurfaceSize()
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
-        pane.gridReferenceWidth = pane.thumbnailHost.width
-        pane.gridReferenceHeight = pane.thumbnailHost.height
-        pane.gridHostWidth = pane.thumbnailHost.width
-        pane.gridHostHeight = pane.thumbnailHost.height
+        pane.gridReferenceWidth = hostWidth
+        pane.gridReferenceHeight = hostHeight
+        pane.gridHostWidth = hostWidth
+        pane.gridHostHeight = hostHeight
         pane.gridScale = 1f
         pane.webView.settings.useWideViewPort = true
         pane.webView.settings.loadWithOverviewMode = false
@@ -1161,8 +1181,6 @@ class MainActivity : AppCompatActivity() {
             grid.clipChildren = true
             grid.clipToPadding = true
             readyPanes.forEach { pane ->
-                pane.gridHostWidth = pane.thumbnailHost.width
-                pane.gridHostHeight = pane.thumbnailHost.height
                 applyGridWebViewViewport(pane)
             }
         } finally {
@@ -1177,8 +1195,6 @@ class MainActivity : AppCompatActivity() {
         isRefreshingGridPaneThumbnails = true
         try {
             readyPanes.forEach { pane ->
-                pane.gridHostWidth = pane.thumbnailHost.width
-                pane.gridHostHeight = pane.thumbnailHost.height
                 // Pager pages are the primary view, not thumbnails. Measure
                 // the WebView to the page that is actually available so one
                 // instance fills the screen in normal, freeform and PiP modes.
