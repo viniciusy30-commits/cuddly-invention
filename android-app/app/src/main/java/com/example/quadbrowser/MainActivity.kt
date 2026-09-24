@@ -106,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     private data class BrowserPane(
         val container: View,
         val thumbnailHost: PaneViewportLayout,
+        val bodyViewportHost: PaneViewportLayout,
         var webView: WebView,
         val avatarView: TextView,
         val dragHandle: View,
@@ -282,15 +283,23 @@ class MainActivity : AppCompatActivity() {
         }
 
         val definitions = listOf(
-            PaneDefinition(R.id.pane_1, R.id.avatar_1, R.id.pane_title_1, R.id.pane_drag_handle_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.webview_1, "webview1"),
-            PaneDefinition(R.id.pane_2, R.id.avatar_2, R.id.pane_title_2, R.id.pane_drag_handle_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.webview_2, "webview2"),
-            PaneDefinition(R.id.pane_3, R.id.avatar_3, R.id.pane_title_3, R.id.pane_drag_handle_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.webview_3, "webview3"),
-            PaneDefinition(R.id.pane_4, R.id.avatar_4, R.id.pane_title_4, R.id.pane_drag_handle_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.webview_4, "webview4"),
+            PaneDefinition(R.id.pane_1, R.id.avatar_1, R.id.pane_title_1, R.id.pane_drag_handle_1, R.id.pane_subtitle_1, R.id.navigate_1, R.id.reload_1, R.id.fullscreen_1, R.id.auto_click_1, R.id.close_1, R.id.empty_state_1, R.id.reopen_1, R.id.pane_body_1, R.id.webview_1, "webview1"),
+            PaneDefinition(R.id.pane_2, R.id.avatar_2, R.id.pane_title_2, R.id.pane_drag_handle_2, R.id.pane_subtitle_2, R.id.navigate_2, R.id.reload_2, R.id.fullscreen_2, R.id.auto_click_2, R.id.close_2, R.id.empty_state_2, R.id.reopen_2, R.id.pane_body_2, R.id.webview_2, "webview2"),
+            PaneDefinition(R.id.pane_3, R.id.avatar_3, R.id.pane_title_3, R.id.pane_drag_handle_3, R.id.pane_subtitle_3, R.id.navigate_3, R.id.reload_3, R.id.fullscreen_3, R.id.auto_click_3, R.id.close_3, R.id.empty_state_3, R.id.reopen_3, R.id.pane_body_3, R.id.webview_3, "webview3"),
+            PaneDefinition(R.id.pane_4, R.id.avatar_4, R.id.pane_title_4, R.id.pane_drag_handle_4, R.id.pane_subtitle_4, R.id.navigate_4, R.id.reload_4, R.id.fullscreen_4, R.id.auto_click_4, R.id.close_4, R.id.empty_state_4, R.id.reopen_4, R.id.pane_body_4, R.id.webview_4, "webview4"),
         )
 
         definitions.forEachIndexed { index, definition ->
               val grid = findViewById<EqualPaneGridLayout>(R.id.browser_grid)
               val container = findViewById<View>(definition.paneId)
+              val body = findViewById<View>(definition.bodyId)
+              val bodyParent = body.parent as ViewGroup
+              val bodyIndex = bodyParent.indexOfChild(body)
+              val bodyLayoutParams = body.layoutParams
+              bodyParent.removeView(body)
+              val bodyViewportHost = PaneViewportLayout(this)
+              bodyParent.addView(bodyViewportHost, bodyIndex, bodyLayoutParams)
+              bodyViewportHost.addView(body, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
               val thumbnailHost = PaneViewportLayout(this)
               grid.removeView(container)
               grid.addView(thumbnailHost, index, paneLayoutParams(index))
@@ -304,6 +313,7 @@ class MainActivity : AppCompatActivity() {
              val pane = BrowserPane(
                    container = container,
                    thumbnailHost = thumbnailHost,
+                   bodyViewportHost = bodyViewportHost,
                   webView = webView,
                   avatarView = findViewById(definition.avatarId),
                   clickLayer = clickLayer,
@@ -1022,8 +1032,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyActualSizeWebViewViewport(pane: BrowserPane) {
-        val hostWidth = pane.thumbnailHost.width
-        val hostHeight = pane.thumbnailHost.height
+        val hostWidth = pane.bodyViewportHost.width
+        val hostHeight = pane.bodyViewportHost.height
         // Layout callbacks can arrive several times without changing the cell
         // size. Reapplying the surface and dispatching two JS resize events for
         // every pane in that case makes sites such as pokeidle.io do avoidable
@@ -1034,6 +1044,7 @@ class MainActivity : AppCompatActivity() {
         ) return
 
         pane.thumbnailHost.resetSurfaceSize()
+        pane.bodyViewportHost.resetSurfaceSize()
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
         pane.gridReferenceWidth = hostWidth
@@ -1050,6 +1061,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun applyFullscreenWebViewViewport(pane: BrowserPane) {
         pane.thumbnailHost.resetSurfaceSize()
+        pane.bodyViewportHost.resetSurfaceSize()
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
         pane.webView.settings.useWideViewPort = true
@@ -1065,8 +1077,8 @@ class MainActivity : AppCompatActivity() {
         // resizing/reflowing the page. This is intentional: the auto-click
         // coordinates must point at the same page pixels in both views.
         val (referenceWidth, referenceHeight) = thumbnailReferenceSize()
-        val hostWidth = pane.thumbnailHost.width
-        val hostHeight = pane.thumbnailHost.height
+        val hostWidth = pane.bodyViewportHost.width
+        val hostHeight = pane.bodyViewportHost.height
         if (hostWidth <= 1 || hostHeight <= 1) return
         if (pane.gridTransformApplied &&
             pane.gridReferenceWidth == referenceWidth &&
@@ -1076,7 +1088,8 @@ class MainActivity : AppCompatActivity() {
             pane.gridScale == 1f
         ) return
 
-        pane.thumbnailHost.setSurfaceSize(referenceWidth, referenceHeight, 1f, 1f)
+        pane.thumbnailHost.resetSurfaceSize()
+        pane.bodyViewportHost.setSurfaceSize(referenceWidth, referenceHeight, 1f, 1f)
         pane.gridScalePercent = null
         pane.gridTransformApplied = true
         pane.gridReferenceWidth = referenceWidth
@@ -1185,10 +1198,15 @@ class MainActivity : AppCompatActivity() {
         val referenceWidth = fullscreenOverlay.width.takeIf { it > 1 }
             ?: (content.width - content.paddingLeft - content.paddingRight).takeIf { it > 1 }
             ?: MOBILE_VIEWPORT_WIDTH
-        val referenceHeight = fullscreenOverlay.height.takeIf { it > 1 }
+        val fullHeight = fullscreenOverlay.height.takeIf { it > 1 }
             ?: (content.height - content.paddingTop - content.paddingBottom).takeIf { it > 1 }
             ?: (referenceWidth * 2.05f).roundToInt()
-        return referenceWidth.coerceAtLeast(1) to referenceHeight.coerceAtLeast(1)
+        // The fixed surface belongs to pane_body, not the card toolbar. Keep
+        // the toolbar visible in every 2x2 cell and use only the fullscreen
+        // body height as the WebView reference.
+        val bodyTop = panes.firstOrNull()?.bodyViewportHost?.top?.takeIf { it > 1 } ?: dp(68)
+        val referenceHeight = (fullHeight - bodyTop).coerceAtLeast(1)
+        return referenceWidth.coerceAtLeast(1) to referenceHeight
     }
 
     private fun refreshGridPaneThumbnails() {
@@ -2531,6 +2549,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         val closeButtonId: Int,
         val emptyStateId: Int,
         val reopenButtonId: Int,
+        val bodyId: Int,
         val webViewId: Int,
         val profileName: String,
     )
