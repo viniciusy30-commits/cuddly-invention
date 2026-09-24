@@ -15,46 +15,46 @@
         android:elevation="8dp"
         android:gravity="center"
         android:orientation="horizontal"
-        android:paddingStart="12dp"
-        android:paddingEnd="12dp">
+        android:paddingStart="6dp"
+        android:paddingEnd="6dp">
 
         <ImageButton
             android:id="@+id/view_mode_toggle"
             style="@style/ThemeButton"
-            android:layout_marginStart="7dp"
-            android:layout_marginEnd="7dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
             android:contentDescription="@string/view_mode_switch_to_paged"
             android:src="@drawable/ic_grid_view" />
 
         <ImageButton
             android:id="@+id/theme_toggle"
             style="@style/ThemeButton"
-            android:layout_marginStart="7dp"
-            android:layout_marginEnd="7dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
             android:contentDescription="@string/theme_switch_to_dark"
             android:src="@drawable/ic_moon" />
 
         <ImageButton
             android:id="@+id/background_button"
             style="@style/ThemeButton"
-            android:layout_marginStart="7dp"
-            android:layout_marginEnd="7dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
             android:contentDescription="@string/minimize_to_floating_bubble"
             android:src="@drawable/ic_minimize" />
 
         <ImageButton
             android:id="@+id/energy_saver_toggle"
             style="@style/ThemeButton"
-            android:layout_marginStart="7dp"
-            android:layout_marginEnd="7dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
             android:contentDescription="@string/energy_saver_enable"
             android:src="@drawable/ic_battery_saver" />
 
         <ImageButton
             android:id="@+id/contact_button"
             style="@style/ThemeButton"
-            android:layout_marginStart="7dp"
-            android:layout_marginEnd="7dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
             android:contentDescription="@string/contact_button_description"
             android:src="@drawable/ic_contact_support"
             android:visibility="gone" />
