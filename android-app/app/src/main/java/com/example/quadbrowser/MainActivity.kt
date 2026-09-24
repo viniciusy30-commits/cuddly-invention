@@ -220,7 +220,6 @@ class MainActivity : AppCompatActivity() {
             setOnClickListener { setEnergySaverEnabled(!isEnergySaverEnabled) }
         }
         findViewById<Button>(R.id.energy_saver_exit).setOnClickListener { setEnergySaverEnabled(false) }
-        energySaverOverlay.setOnClickListener { setEnergySaverEnabled(false) }
         instancePager = findViewById(R.id.browser_pager)
         pagerSwitchStrip = findViewById(R.id.pager_switch_strip)
         pagerPreviousButton = findViewById(R.id.pager_previous)
