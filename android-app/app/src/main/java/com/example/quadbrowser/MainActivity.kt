@@ -1060,16 +1060,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyGridWebViewViewport(pane: BrowserPane) {
-        // Grid cells and the single/PiP view both want the same thing: the
-        // WebView measured to its host's real, current size. The previous
-        // approach tried to scale a "fullscreen reference" surface down to
-        // fit each cell, but that reference (browser_content) is the size of
-        // the WHOLE 2x2 area, not of a single cell — so the math could end
-        // up computing a scale of 1.0 (no shrink at all), which is exactly
-        // why cells were rendering at full-screen size instead of filling
-        // their own quarter of the screen. Using the real cell size directly
-        // removes that broken math entirely.
-        applyActualSizeWebViewViewport(pane)
+        // Keep the WebView on the same logical surface used by fullscreen.
+        // PaneViewportLayout clips that surface to the 2x2 cell instead of
+        // resizing/reflowing the page. This is intentional: the auto-click
+        // coordinates must point at the same page pixels in both views.
+        val (referenceWidth, referenceHeight) = thumbnailReferenceSize()
+        val hostWidth = pane.thumbnailHost.width
+        val hostHeight = pane.thumbnailHost.height
+        if (hostWidth <= 1 || hostHeight <= 1) return
+        if (pane.gridTransformApplied &&
+            pane.gridReferenceWidth == referenceWidth &&
+            pane.gridReferenceHeight == referenceHeight &&
+            pane.gridHostWidth == hostWidth &&
+            pane.gridHostHeight == hostHeight &&
+            pane.gridScale == 1f
+        ) return
+
+        pane.thumbnailHost.setSurfaceSize(referenceWidth, referenceHeight, 1f, 1f)
+        pane.gridScalePercent = null
+        pane.gridTransformApplied = true
+        pane.gridReferenceWidth = referenceWidth
+        pane.gridReferenceHeight = referenceHeight
+        pane.gridHostWidth = hostWidth
+        pane.gridHostHeight = hostHeight
+        pane.gridScale = 1f
+        pane.webView.settings.useWideViewPort = true
+        pane.webView.settings.loadWithOverviewMode = false
+        pane.webView.setInitialScale(0)
+        restoreDefaultPageViewport(pane.webView)
+        applyWebViewZoom(pane, 100)
     }
 
     /** Keeps the pager's visibility and its toolbar switch strip in sync. */
@@ -1191,9 +1210,8 @@ class MainActivity : AppCompatActivity() {
         val readyPanes = panes.filter { it.container.parent === it.thumbnailHost && it.thumbnailHost.width > 0 && it.thumbnailHost.height > 0 }
         if (readyPanes.isEmpty()) return
 
-        // Keep each WebView responsive to its own cell. Auto-click coordinates
-        // are projected independently, so the site is not forced into a
-        // fullscreen-sized surface just to preserve click positions.
+        // The page intentionally keeps its fullscreen logical surface here;
+        // PaneViewportLayout clips the overflow to each compact cell.
         isRefreshingGridPaneThumbnails = true
         try {
             grid.clipChildren = true
