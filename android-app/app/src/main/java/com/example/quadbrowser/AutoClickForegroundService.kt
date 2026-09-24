@@ -16,7 +16,10 @@ class AutoClickForegroundService : Service() {
       private var showAutoClickStatus = false
       private var floatingBubble: FloatingBubbleOverlay? = null
       private val keepAliveHandler = android.os.Handler(android.os.Looper.getMainLooper())
-      private val keepAliveIntervalMs = 5000L
+      // Foreground WebViews do not need periodic timer nudges. When the
+      // app is backgrounded, a slower heartbeat still refreshes timers while
+      // avoiding unnecessary main-thread wakeups.
+      private val keepAliveIntervalMs = 15_000L
       private val keepAliveRunnable = object : Runnable {
           override fun run() {
               MainActivity.keepBackgroundWebViewsAlive()
