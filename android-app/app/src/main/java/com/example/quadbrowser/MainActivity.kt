@@ -859,10 +859,11 @@ class MainActivity : AppCompatActivity() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        window.decorView.post {
-            applyPaneLayout()
-            refreshAutoClickEditors()
-        }
+        // Do not reparent WebView containers here. Android can report the
+        // software keyboard as a configuration change; removing and adding
+        // the focused WebView closes the IME and makes text entry impossible.
+        // The normal measure/layout pass handles orientation and IME resizing.
+        window.decorView.post { refreshAutoClickEditors() }
     }
 
     override fun onMultiWindowModeChanged(isInMultiWindowMode: Boolean, newConfig: Configuration) {
