@@ -1348,8 +1348,38 @@ class MainActivity : AppCompatActivity() {
         pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
       }
 
+      // FEATURE FLAG (2026-09-27): fixes auto-click points created while the
+      // editor is open on the small 2x2 grid cell landing on the wrong
+      // element once the pane is viewed fullscreen or in the floating
+      // bubble. Before this fix, the reference size was whatever host the
+      // editor happened to be opened in (grid cell OR fullscreen), so a
+      // point added in the grid was stored relative to the small cell size;
+      // dispatchClick would then wrongly re-scale it as if that had been the
+      // fullscreen size, landing far from the intended element.
+      //
+      // Set this to false to instantly restore the previous (buggy but
+      // previously-shipped) behavior without reverting any other change in
+      // this file, if this fix ever needs to be backed out quickly.
+      private val USE_FULLSCREEN_LOCKED_AUTOCLICK_REFERENCE = true
+
       private fun captureAutoClickReference(index: Int) {
           val pane = panes.getOrNull(index) ?: return
+          if (USE_FULLSCREEN_LOCKED_AUTOCLICK_REFERENCE) {
+              // Always normalize click points against the true fullscreen
+              // content surface — the same one applyGridWebViewViewport()
+              // uses via thumbnailReferenceSize() to compute the grid zoom —
+              // no matter which host (grid cell, pager, fullscreen, bubble)
+              // the auto-click editor happens to be open on right now. This
+              // keeps a single, stable coordinate space so dispatchClick()'s
+              // re-projection from that space onto any host's real pixel
+              // size is always correct, regardless of where a point was
+              // created or edited.
+              val (referenceWidth, referenceHeight) = thumbnailReferenceSize()
+              if (referenceWidth <= 1 || referenceHeight <= 1) return
+              pane.autoClickReferenceWidth = referenceWidth.toFloat()
+              pane.autoClickReferenceHeight = referenceHeight.toFloat()
+              return
+          }
           val layerWidth = pane.clickLayer.width
           val layerHeight = pane.clickLayer.height
           if (layerWidth <= 1 || layerHeight <= 1) return
