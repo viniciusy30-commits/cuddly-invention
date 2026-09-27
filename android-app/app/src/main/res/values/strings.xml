@@ -26,6 +26,7 @@
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
         <string name="minimize_to_floating_bubble">Abrir em janela flutuante</string>
         <string name="floating_bubble_permission_required">Permita a sobreposição do Multi Account para usar o ícone flutuante.</string>
+        <string name="floating_bubble_permission_denied">Permissão não concedida. O app continua aberto normalmente, sem o ícone flutuante.</string>
         <string name="floating_bubble_description">Abrir o Multi Account</string>
     <string name="view_mode_switch_to_paged">Mostrar uma instância por aba</string>
     <string name="pager_switch_to_instance_1">Ir para instância 1</string>

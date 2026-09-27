@@ -12,13 +12,13 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
-import android.app.PictureInPictureParams
 import android.view.Gravity
 import android.net.Uri
+import android.provider.Settings
 import android.os.Bundle
 import android.util.Log
-import android.util.Rational
 import android.util.Patterns
 import android.view.MotionEvent
 import android.view.View
@@ -178,6 +178,12 @@ class MainActivity : AppCompatActivity() {
     // was the root cause of the app silently closing right after granting
     // the notification permission.
     private var notificationPermissionDialogPending = false
+    // Set right before sending the user to the "draw over other apps"
+    // system settings screen so the floating bubble can be shown. Checked
+    // in onResume() (the only reliable place to notice the user has come
+    // back from that settings screen) to retry showing the bubble once the
+    // permission is actually granted, instead of silently doing nothing.
+    private var pendingBubbleRequestAfterOverlayPermission = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isRefreshingGridPaneThumbnails = false
     private var isPagerMode = false
@@ -2341,49 +2347,64 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             if (isPagerMode) R.string.view_mode_switch_to_grid else R.string.view_mode_switch_to_paged,
         )
     }
+    /**
+     * Some manufacturers (Xiaomi/MIUI, Samsung, etc.) kill foreground
+     * services more aggressively than stock Android once the battery
+     * optimizer decides an app is "inactive", even with a foreground
+     * notification showing. Asking to be exempted is what actually keeps
+     * the panes running indefinitely in the background rather than getting
+     * silently frozen after a while, which is the whole point of the
+     * floating bubble. This is a one-time system dialog; if the user
+     * declines, the bubble still works, it just isn't as reliably
+     * protected from being killed on those stricter devices.
+     */
+    private fun requestIgnoreBatteryOptimizationsIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
+        val powerManager = getSystemService(PowerManager::class.java) ?: return
+        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return
+        try {
+            startActivity(
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:$packageName"),
+                )
+            )
+        } catch (error: android.content.ActivityNotFoundException) {
+            Log.w("QuadBrowser", "Battery optimization settings screen unavailable", error)
+        }
+    }
+
     private fun minimizeToPictureInPicture() {
-          if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-              Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+          // "PiP" here means the floating bubble, not Android's native PiP
+          // window: the goal is for pokeidle.io (and every other pane) to
+          // keep running exactly as if the app were still open on screen —
+          // no reflow into a tiny PiP surface, no reconnect. moveTaskToBack
+          // sends the whole Activity to the background (same as pressing
+          // Home), which is exactly what onStop()/onUserLeaveHint() already
+          // handle by starting AutoClickForegroundService and keeping every
+          // WebView's timers running. All that's added here is asking that
+          // service to also show the tap-to-return bubble.
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+              pendingBubbleRequestAfterOverlayPermission = true
+              startActivity(
+                  Intent(
+                      Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                      Uri.parse("package:$packageName"),
+                  )
+              )
+              Toast.makeText(this, R.string.floating_bubble_permission_required, Toast.LENGTH_LONG).show()
               return
           }
-
-          // The floating (PiP) window used to always show one instance at
-          // real size. Since grid/pager view was added, minimizing while in
-          // grid or pager mode left every pane fullscreen-less, so all 4
-          // instances got squeezed into the tiny PiP window together — that
-          // is the "compressed" floating window and the auto-click markers
-          // landing in the wrong place. Force whichever instance the user is
-          // currently looking at into fullscreen first, so PiP always shows
-          // a single WebView at its real measured size, exactly like before.
-          if (fullscreenPaneIndex == null) {
-              val candidate = if (isPagerMode) {
-                  paneOrder.getOrNull(instancePager.currentPage)
+          requestIgnoreBatteryOptimizationsIfNeeded()
+          startBackgroundService(
+              action = if (panes.any { it.isAutoClicking }) {
+                  AutoClickForegroundService.ACTION_START
               } else {
-                  paneOrder.firstOrNull { panes.getOrNull(it)?.isOpen == true }
-              }
-              candidate?.takeIf { it in panes.indices && panes[it].isOpen }?.let { toggleFullscreen(it) }
-          }
-
-          val content = findViewById<View>(R.id.browser_content)
-          val width = content.width.coerceAtLeast(1)
-          val height = content.height.coerceAtLeast(1)
-          val ratio = (width.toFloat() / height.toFloat()).coerceIn(0.418f, 2.39f)
-          val denominator = 1000
-          val numerator = (ratio * denominator).roundToInt().coerceIn(418, 2390)
-          val paramsBuilder = PictureInPictureParams.Builder()
-              .setAspectRatio(Rational(numerator, denominator))
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-              paramsBuilder.setSeamlessResizeEnabled(true)
-          }
-
-          try {
-              if (!enterPictureInPictureMode(paramsBuilder.build())) {
-                  Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
-              }
-          } catch (error: IllegalStateException) {
-              Log.w("QuadBrowser", "Unable to enter picture-in-picture mode", error)
-              Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
-          }
+                  AutoClickForegroundService.ACTION_START_BROWSER
+              },
+              showFloatingBubble = true,
+          )
+          moveTaskToBack(true)
       }
 
     
@@ -2573,6 +2594,17 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
           isActivityVisible = true
           if (!panes.any { it.isAutoClicking }) {
               stopService(Intent(this, AutoClickForegroundService::class.java))
+          }
+          if (pendingBubbleRequestAfterOverlayPermission) {
+              pendingBubbleRequestAfterOverlayPermission = false
+              if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
+                  // Permission granted while the user was on the system
+                  // settings screen: honor the original minimize request now
+                  // instead of making them tap the button a second time.
+                  minimizeToPictureInPicture()
+              } else {
+                  Toast.makeText(this, R.string.floating_bubble_permission_denied, Toast.LENGTH_SHORT).show()
+              }
           }
       }
 
