@@ -1,0 +1,63 @@
+name: Unpack incoming zip and commit
+
+# Watches the "_incoming/" folder on the Dev branch. Any .zip pushed there is
+# extracted into the repository root (so paths inside the zip must mirror
+# the project's real folder structure, e.g. android-app/app/src/main/...),
+# the original zip is deleted, and everything is committed automatically as
+# a bot. This lets updates be delivered as one zip upload instead of one
+# file at a time through GitHub's web upload page.
+
+on:
+  push:
+    branches:
+      - Dev
+    paths:
+      - "_incoming/**.zip"
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Dev branch
+        uses: actions/checkout@v4
+        with:
+          ref: Dev
+
+      - name: Extract every zip in _incoming/ over the repo root
+        run: |
+          set -e
+          shopt -s nullglob
+          zips=(_incoming/*.zip)
+          if [ ${#zips[@]} -eq 0 ]; then
+            echo "No .zip files found in _incoming/, nothing to do."
+            exit 0
+          fi
+          for zip_file in "${zips[@]}"; do
+            echo "Extracting $zip_file into repository root..."
+            # Exclude the workflow files themselves from extraction, so a
+            # zip can never accidentally (or maliciously) overwrite the
+            # automation that is unpacking it.
+            unzip -o "$zip_file" -x ".github/workflows/*" -d .
+            rm -f "$zip_file"
+          done
+
+      - name: Remove _incoming/ if now empty
+        run: |
+          if [ -d "_incoming" ] && [ -z "$(ls -A _incoming)" ]; then
+            rmdir _incoming
+          fi
+
+      - name: Commit and push extracted files
+        run: |
+          git config user.name "quadbrowser-bot"
+          git config user.email "quadbrowser-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed after extraction, skipping commit."
+          else
+            git commit -m "Auto: unpack incoming zip from _incoming/"
+            git push origin Dev
+          fi
