@@ -1,0 +1,4 @@
+Esta pasta é usada pelo workflow "Unpack incoming zip and commit".
+Suba arquivos .zip aqui (no branch dev) para que sejam extraídos e
+aplicados automaticamente ao projeto. Este arquivo apenas garante que
+a pasta exista no Git; pode ser ignorado.
