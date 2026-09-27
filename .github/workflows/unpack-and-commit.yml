@@ -12,7 +12,8 @@ on:
     branches:
       - Dev
     paths:
-      - "_incoming/**.zip"
+      - "_incoming/*.zip"
+      - "_incoming/**/*.zip"
 
 permissions:
   contents: write
@@ -30,7 +31,7 @@ jobs:
         run: |
           set -e
           shopt -s nullglob
-          zips=(_incoming/*.zip)
+          zips=(_incoming/*.zip _incoming/**/*.zip)
           if [ ${#zips[@]} -eq 0 ]; then
             echo "No .zip files found in _incoming/, nothing to do."
             exit 0
