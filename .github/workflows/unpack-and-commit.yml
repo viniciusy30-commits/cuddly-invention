@@ -1,6 +1,6 @@
 name: Unpack incoming zip and commit
 
-# Watches the "_incoming/" folder on the dev branch. Any .zip pushed there is
+# Watches the "_incoming/" folder on the Dev branch. Any .zip pushed there is
 # extracted into the repository root (so paths inside the zip must mirror
 # the project's real folder structure, e.g. android-app/app/src/main/...),
 # the original zip is deleted, and everything is committed automatically as
@@ -10,7 +10,7 @@ name: Unpack incoming zip and commit
 on:
   push:
     branches:
-      - dev
+      - Dev
     paths:
       - "_incoming/**.zip"
 
@@ -21,10 +21,10 @@ jobs:
   unpack:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out dev branch
+      - name: Check out Dev branch
         uses: actions/checkout@v4
         with:
-          ref: dev
+          ref: Dev
 
       - name: Extract every zip in _incoming/ over the repo root
         run: |
@@ -59,5 +59,5 @@ jobs:
             echo "Nothing changed after extraction, skipping commit."
           else
             git commit -m "Auto: unpack incoming zip from _incoming/"
-            git push origin dev
+            git push origin Dev
           fi
