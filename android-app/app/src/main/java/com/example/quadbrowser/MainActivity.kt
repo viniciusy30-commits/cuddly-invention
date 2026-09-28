@@ -88,6 +88,57 @@ class MainActivity : AppCompatActivity() {
         const val PANE_NAME_PREFIX = "pane_name_"
         const val PANE_COLOR_PREFIX = "pane_color_"
         const val PANE_AVATAR_PREFIX = "pane_avatar_"
+
+        // FEATURE FLAG (2026-09-28): see the detailed comment at
+        // setEnergySaverEnabled(). Set to false to restore the old
+        // visual-only energy saver (WebViews stay fully active underneath).
+        const val REAL_ENERGY_SAVER_PAUSES_INACTIVE_WEBVIEWS = true
+
+        // FEATURE FLAG (2026-09-27): see the detailed comment at the
+        // onPageStarted/onPageFinished call sites below. Set to false to
+        // fully disable the visibility spoofing and go back to reporting the
+        // WebView's real visibility/focus state to every page.
+        const val SPOOF_PAGE_VISIBILITY_TO_PREVENT_DISCONNECT = true
+
+        // Overrides document.hidden / document.visibilityState / hasFocus()
+        // to always report "visible and focused", and swallows
+        // visibilitychange/blur/pagehide/webkitvisibilitychange before any
+        // of the page's own listeners run — so a game like pokeidle.io that
+        // pauses or disconnects on tab-hidden never sees that signal, even
+        // though minimizing the app or showing the floating bubble really
+        // does take the Activity out of the foreground. This only touches
+        // what JavaScript running inside the page can observe; it doesn't
+        // change anything about how Android itself manages the Activity.
+        private const val VISIBILITY_SPOOF_SCRIPT = """
+            (function() {
+                if (window.__quadbrowserVisibilitySpoofInstalled) return;
+                window.__quadbrowserVisibilitySpoofInstalled = true;
+                try {
+                    Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });
+                } catch (e) {}
+                try {
+                    Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });
+                } catch (e) {}
+                try {
+                    Object.defineProperty(document, 'webkitHidden', { get: function() { return false; }, configurable: true });
+                } catch (e) {}
+                try {
+                    Object.defineProperty(document, 'webkitVisibilityState', { get: function() { return 'visible'; }, configurable: true });
+                } catch (e) {}
+                try {
+                    document.hasFocus = function() { return true; };
+                } catch (e) {}
+                var blockedEvents = ['visibilitychange', 'webkitvisibilitychange', 'blur', 'pagehide', 'freeze'];
+                blockedEvents.forEach(function(eventName) {
+                    window.addEventListener(eventName, function(e) {
+                        e.stopImmediatePropagation();
+                    }, true);
+                    document.addEventListener(eventName, function(e) {
+                        e.stopImmediatePropagation();
+                    }, true);
+                });
+            })();
+        """
         const val AUTO_PRESET_PREFIX = "auto_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
@@ -2353,7 +2404,43 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     private fun setEnergySaverEnabled(enabled: Boolean) {
         if (!::energySaverOverlay.isInitialized) return
         isEnergySaverEnabled = enabled
-        panes.forEach { pane -> pane.webView.alpha = if (enabled) 0f else 1f }
+        // FEATURE FLAG (2026-09-28, revised): the energy saver used to only
+        // hide the WebViews visually (alpha = 0) while leaving every one of
+        // them fully rendering underneath — so it looked like battery saving
+        // but cost the same GPU compositing as normal use.
+        //
+        // IMPORTANT: every pane must keep actually running (JS, timers,
+        // network) while energy saver is on, auto-clicker active or not —
+        // the user explicitly needs the game connections to stay alive
+        // (this is the same requirement behind the visibility-spoof fix
+        // above), so this deliberately never calls webView.onPause() and
+        // never stops timers. The real saving here is display-only: setting
+        // visibility = GONE (not just alpha = 0) tells Android to skip
+        // measuring/drawing/compositing that WebView's frames entirely,
+        // and dropping the hardware layer avoids holding a GPU texture for
+        // a surface nobody is looking at. Nothing about the page's own
+        // execution changes, so nothing here can reintroduce a disconnect.
+        // INVISIBLE (not GONE) is used deliberately: GONE would remove the
+        // WebView from layout and could shrink the size it reports to the
+        // page (the same kind of viewport mismatch already fixed elsewhere
+        // in this file); INVISIBLE skips drawing/compositing while keeping
+        // its measured size exactly as it was.
+        //
+        // Set to false to instantly go back to the old alpha-only behavior
+        // without reverting anything else.
+        if (REAL_ENERGY_SAVER_PAUSES_INACTIVE_WEBVIEWS) {
+            panes.forEach { pane ->
+                if (enabled) {
+                    pane.webView.visibility = View.INVISIBLE
+                    pane.webView.setLayerType(View.LAYER_TYPE_NONE, null)
+                } else {
+                    pane.webView.visibility = View.VISIBLE
+                    pane.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
+                }
+            }
+        } else {
+            panes.forEach { pane -> pane.webView.alpha = if (enabled) 0f else 1f }
+        }
         energySaverOverlay.visibility = if (enabled) View.VISIBLE else View.GONE
         if (enabled) {
             val activeInstances = panes.count { it.isOpen }
@@ -2513,6 +2600,26 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                 updatePaneIdentity(paneIndex, url, null)
                 persistPaneUrl(paneIndex, url)
                 maybeChooseGoogleAccount(paneIndex, url)
+                // FEATURE FLAG (2026-09-27): fixes pokeidle.io (and similar
+                // sites that watch document.visibilityState / the
+                // visibilitychange event) disconnecting the moment the app
+                // is minimized or the floating bubble is shown — even though
+                // resumeTimers() already keeps the WebView's JS actually
+                // running in the background. The disconnect is not caused by
+                // JS being paused; it's the page itself reacting to Chromium
+                // reporting the tab as hidden/blurred once the Activity
+                // leaves the foreground, the same signal a desktop browser
+                // sends when you switch tabs. This spoofs that signal at the
+                // JS layer, injected before the page's own scripts run, so
+                // the page always believes it is visible and focused no
+                // matter what the real Activity/window state is.
+                //
+                // Set to false to instantly restore the previous (real
+                // visibility reporting, but disconnect-on-minimize)
+                // behavior without touching anything else.
+                if (SPOOF_PAGE_VISIBILITY_TO_PREVENT_DISCONNECT) {
+                    view.evaluateJavascript(VISIBILITY_SPOOF_SCRIPT, null)
+                }
             }
 
             override fun onPageFinished(view: WebView, url: String) {
@@ -2529,6 +2636,12 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                     }
                 }
                 view.post { view.requestLayout() }
+                // Re-apply after the page's own scripts have finished
+                // loading too, in case any of them re-read these properties
+                // once at startup rather than relying on the live getters.
+                if (SPOOF_PAGE_VISIBILITY_TO_PREVENT_DISCONNECT) {
+                    view.evaluateJavascript(VISIBILITY_SPOOF_SCRIPT, null)
+                }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
