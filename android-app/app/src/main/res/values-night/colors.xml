@@ -1,20 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="app_background">#0C1020</color>
-    <color name="grid_background">#141A2B</color>
-    <color name="pane_background">#111827</color>
-    <color name="toolbar_background">#182136</color>
-    <color name="toolbar_tint">#202B4B</color>
-    <color name="pane_toolbar_background">#1A253C</color>
-    <color name="address_background">#111A2D</color>
-    <color name="icon_button_background">#222D45</color>
-    <color name="toolbar_stroke">#2D3B59</color>
+    <!-- FEATURE FLAG (2026-09-28): night palette changed from a dark-blue
+         tint (#0C1020 etc.) to true black, per user request — both because
+         it looks like real "black mode" instead of navy, and because true
+         black (#000000) lets AMOLED screens turn those pixels off entirely,
+         saving battery in a way a dark-blue tint cannot. To revert, restore
+         the previous hex values noted in each comment below. -->
+    <color name="app_background">#000000</color> <!-- was #0C1020 -->
+    <color name="grid_background">#000000</color> <!-- was #141A2B -->
+    <color name="pane_background">#0A0A0A</color> <!-- was #111827 -->
+    <color name="toolbar_background">#0D0D0D</color> <!-- was #182136 -->
+    <color name="toolbar_tint">#151515</color> <!-- was #202B4B -->
+    <color name="pane_toolbar_background">#0F0F0F</color> <!-- was #1A253C -->
+    <color name="address_background">#0A0A0A</color> <!-- was #111A2D -->
+    <color name="icon_button_background">#181818</color> <!-- was #222D45 -->
+    <color name="toolbar_stroke">#2A2A2A</color> <!-- was #2D3B59 -->
     <color name="text_primary">#F5F7FF</color>
-    <color name="text_secondary">#A2B0CC</color>
+    <color name="text_secondary">#A6A6B0</color> <!-- was #A2B0CC -->
     <color name="accent">#8592FF</color>
     <color name="accent_dark">#6D7BF0</color>
-    <color name="accent_soft">#252F5A</color>
+    <color name="accent_soft">#20203A</color> <!-- was #252F5A -->
     <color name="danger">#FF8C98</color>
-    <color name="danger_background">#3A202C</color>
-    <color name="danger_stroke">#693542</color>
+    <color name="danger_background">#2A1218</color> <!-- was #3A202C -->
+    <color name="danger_stroke">#5A2530</color> <!-- was #693542 -->
 </resources>

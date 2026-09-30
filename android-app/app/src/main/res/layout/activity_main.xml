@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/root_container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/app_background"
@@ -35,12 +36,12 @@
             android:src="@drawable/ic_moon" />
 
         <ImageButton
-            android:id="@+id/background_button"
+            android:id="@+id/broadcast_url_button"
             style="@style/ThemeButton"
             android:layout_marginStart="2dp"
             android:layout_marginEnd="2dp"
-            android:contentDescription="@string/minimize_to_floating_bubble"
-            android:src="@drawable/ic_minimize" />
+            android:contentDescription="@string/broadcast_url_to_all"
+            android:src="@drawable/ic_broadcast_to_all" />
 
         <ImageButton
             android:id="@+id/energy_saver_toggle"
@@ -748,30 +749,75 @@
             android:focusable="true"
             android:visibility="gone">
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_energy_saver_card"
                 android:gravity="center"
+                android:minWidth="260dp"
                 android:orientation="vertical"
-                android:padding="24dp">
+                android:paddingStart="28dp"
+                android:paddingTop="32dp"
+                android:paddingEnd="28dp"
+                android:paddingBottom="26dp">
+
+                <FrameLayout
+                    android:layout_width="96dp"
+                    android:layout_height="96dp"
+                    android:background="@drawable/bg_energy_saver_icon_ring">
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="center"
+                        android:contentDescription="@null"
+                        android:src="@drawable/ic_battery_saver"
+                        android:tint="#2ECC71" />
+                </FrameLayout>
+
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="18dp"
                     android:text="@string/energy_saver_active"
                     android:textColor="@android:color/white"
-                    android:textSize="18sp"
+                    android:textSize="19sp"
                     android:textStyle="bold" />
+
                 <TextView
                     android:id="@+id/energy_saver_status"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
+                    android:layout_marginTop="6dp"
+                    android:gravity="center"
                     android:text="@string/energy_saver_status_placeholder"
-                    android:textColor="#BDBDBD"
-                    android:textSize="14sp" />
+                    android:textColor="#B3B3B3"
+                    android:textSize="13sp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_pane_badge"
+                        android:paddingStart="10dp"
+                        android:paddingTop="5dp"
+                        android:paddingEnd="10dp"
+                        android:paddingBottom="5dp"
+                        android:text="@string/energy_saver_chip_keeps_running"
+                        android:textColor="#2ECC71"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
                 <Button
                     android:id="@+id/energy_saver_exit"
                     style="@style/GlobalActionButton"
-                    android:layout_marginTop="18dp"
+                    android:layout_marginTop="22dp"
                     android:text="@string/energy_saver_exit" />
             </LinearLayout>
         </FrameLayout>

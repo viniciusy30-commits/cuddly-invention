@@ -24,9 +24,9 @@
     <string name="instance_active">Instância %1$d • em execução</string>
     <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
-        <string name="minimize_to_floating_bubble">Abrir em janela flutuante</string>
-        <string name="floating_bubble_permission_required">Permita a sobreposição do Multi Account para usar o ícone flutuante.</string>
-        <string name="floating_bubble_permission_denied">Permissão não concedida. O app continua aberto normalmente, sem o ícone flutuante.</string>
+        <string name="broadcast_url_to_all">Aplicar mesmo link às 4 instâncias (toque longo: recarregar as 4)</string>
+        <string name="broadcast_url_to_all_done">Link aplicado às 4 instâncias</string>
+        <string name="reload_all_done">As 4 instâncias foram recarregadas</string>
         <string name="floating_bubble_description">Abrir o Multi Account</string>
     <string name="view_mode_switch_to_paged">Mostrar uma instância por aba</string>
     <string name="pager_switch_to_instance_1">Ir para instância 1</string>
@@ -152,4 +152,5 @@
     <string name="energy_saver_status">%1$d instâncias continuam funcionando</string>
     <string name="energy_saver_status_placeholder">As instâncias continuam funcionando</string>
     <string name="energy_saver_exit">Mostrar instâncias</string>
+    <string name="energy_saver_chip_keeps_running">Jogos continuam rodando</string>
 </resources>

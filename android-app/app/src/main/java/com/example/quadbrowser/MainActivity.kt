@@ -89,6 +89,12 @@ class MainActivity : AppCompatActivity() {
         const val PANE_COLOR_PREFIX = "pane_color_"
         const val PANE_AVATAR_PREFIX = "pane_avatar_"
 
+        // FEATURE FLAG (2026-09-29): see the detailed comment at
+        // toggleTheme()/applyThemeToExistingViews(). Set to false to restore
+        // the old recreate()-based theme switch (destroys/reconnects every
+        // WebView on every toggle).
+        const val APPLY_THEME_WITHOUT_RECREATE = true
+
         // FEATURE FLAG (2026-09-28): see the detailed comment at
         // setEnergySaverEnabled(). Set to false to restore the old
         // visual-only energy saver (WebViews stay fully active underneath).
@@ -229,12 +235,6 @@ class MainActivity : AppCompatActivity() {
     // was the root cause of the app silently closing right after granting
     // the notification permission.
     private var notificationPermissionDialogPending = false
-    // Set right before sending the user to the "draw over other apps"
-    // system settings screen so the floating bubble can be shown. Checked
-    // in onResume() (the only reliable place to notice the user has come
-    // back from that settings screen) to retry showing the bubble once the
-    // permission is actually granted, instead of silently doing nothing.
-    private var pendingBubbleRequestAfterOverlayPermission = false
     private val autoClickHandler = Handler(Looper.getMainLooper())
     private var isRefreshingGridPaneThumbnails = false
     private var isPagerMode = false
@@ -329,8 +329,12 @@ class MainActivity : AppCompatActivity() {
             updateThemeToggle(this)
             setOnClickListener { toggleTheme() }
         }
-        findViewById<ImageButton>(R.id.background_button).setOnClickListener {
-            minimizeToPictureInPicture()
+        findViewById<ImageButton>(R.id.broadcast_url_button).apply {
+            setOnClickListener { broadcastCurrentUrlToAllPanes() }
+            // Long-press reuses the same button for a second, related bulk
+            // action: reload every open pane at once, instead of adding a
+            // separate button/menu for it.
+            setOnLongClickListener { reloadAllPanes(); true }
         }
         findViewById<ImageButton>(R.id.contact_button).setOnClickListener {
             showContactDialog()
@@ -1894,7 +1898,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
            }
            startBackgroundService(action)
        }
-          private fun startBackgroundService(action: String, showFloatingBubble: Boolean = false) {
+          private fun startBackgroundService(action: String) {
               // Never start the foreground service while the POST_NOTIFICATIONS
               // system dialog is open — see notificationPermissionDialogPending's
               // comment. onRequestPermissionsResult() catches up and calls this
@@ -1902,7 +1906,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               if (notificationPermissionDialogPending) return
               val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
                   .setAction(action)
-                  .putExtra(AutoClickForegroundService.EXTRA_SHOW_BUBBLE, showFloatingBubble)
               try {
                   ContextCompat.startForegroundService(this, serviceIntent)
               } catch (error: IllegalStateException) {
@@ -2391,7 +2394,85 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         isDarkTheme = !isDarkTheme
         getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(DARK_THEME_KEY, isDarkTheme).apply()
         AppCompatDelegate.setDefaultNightMode(if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
-        recreate()
+        // FEATURE FLAG (2026-09-29): this used to call recreate(), which
+        // destroys and rebuilds the whole Activity — including every
+        // WebView, which tears down its render process and reconnects
+        // whatever game/site was loaded, on every theme toggle. The
+        // Activity's configChanges already includes "uiMode" (see
+        // AndroidManifest.xml), so the system will not recreate it on its
+        // own either; recreate() was the only thing forcing it to happen.
+        // Removing that call means every already-inflated View keeps
+        // whatever colors/drawables it resolved at inflate time, so they
+        // must be re-applied by hand here, resource by resource, using the
+        // same @color/@drawable references XML already uses — this reuses
+        // the current Resources (which now point at values-night/ or
+        // values/ correctly) rather than hardcoding any hex value.
+        //
+        // Set to false to restore the old recreate()-based behavior.
+        if (APPLY_THEME_WITHOUT_RECREATE) {
+            applyThemeToExistingViews()
+        } else {
+            recreate()
+        }
+    }
+
+    // Re-reads every themed color/drawable resource by ID and re-assigns it
+    // to the already-inflated Views, instead of destroying/recreating the
+    // Activity. Must be kept in sync with activity_main.xml/styles.xml:
+    // any new themed View added there should get a line here too.
+    private fun applyThemeToExistingViews() {
+        findViewById<View>(R.id.root_container)?.setBackgroundColor(getColor(R.color.app_background))
+        findViewById<View>(R.id.app_toolbar)?.background = ContextCompat.getDrawable(this, R.drawable.bg_app_toolbar)
+        findViewById<View>(R.id.access_time_remaining)?.setBackgroundColor(getColor(R.color.grid_background))
+        findViewById<View>(R.id.browser_content)?.setBackgroundColor(getColor(R.color.grid_background))
+        findViewById<View>(R.id.browser_grid)?.setBackgroundColor(getColor(R.color.grid_background))
+        findViewById<View>(R.id.browser_pager)?.setBackgroundColor(getColor(R.color.grid_background))
+        findViewById<View>(R.id.fullscreen_overlay)?.setBackgroundColor(getColor(R.color.pane_background))
+        findViewById<TextView>(R.id.profile_error)?.let {
+            it.setBackgroundColor(getColor(R.color.pane_background))
+            it.setTextColor(getColor(R.color.text_primary))
+        }
+        val textPrimary = getColor(R.color.text_primary)
+        val textSecondary = getColor(R.color.text_secondary)
+        val accent = getColor(R.color.accent)
+        findViewById<TextView>(R.id.access_time_remaining)?.setTextColor(textSecondary)
+        listOf(
+            R.id.view_mode_toggle, R.id.theme_toggle, R.id.broadcast_url_button, R.id.contact_button,
+        ).forEach { id ->
+            findViewById<ImageButton>(id)?.apply {
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_theme_button)
+                setColorFilter(accent)
+            }
+        }
+        // energy_saver_toggle keeps its own on/off coloring — refresh it via
+        // its existing update function instead of forcing the default tint.
+        findViewById<ImageButton>(R.id.energy_saver_toggle)?.let { updateEnergySaverToggle(it) }
+        findViewById<ImageButton>(R.id.theme_toggle)?.let { updateThemeToggle(it) }
+        listOf(R.id.pager_previous, R.id.pager_next).forEach { id ->
+            findViewById<ImageButton>(id)?.apply {
+                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_icon_button)
+                setColorFilter(textPrimary)
+            }
+        }
+        listOf(R.id.pager_dot_1, R.id.pager_dot_2, R.id.pager_dot_3, R.id.pager_dot_4).forEach { id ->
+            findViewById<TextView>(id)?.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_badge)
+        }
+        panes.forEach { pane ->
+            pane.container.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_card)
+            (pane.dragHandle.parent as? View)?.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_toolbar)
+            pane.avatarView.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_badge)
+            pane.titleView.setTextColor(textPrimary)
+            pane.subtitleView.setTextColor(textSecondary)
+            pane.webView.setBackgroundColor(getColor(R.color.pane_background))
+            pane.emptyState.setBackgroundColor(getColor(R.color.pane_background))
+            listOf(pane.navigateButton, pane.reloadButton, pane.fullscreenButton, pane.autoClickButton).forEach { button ->
+                button.background = ContextCompat.getDrawable(this, R.drawable.bg_icon_button)
+                button.setColorFilter(textPrimary)
+            }
+            pane.closeButton.background = ContextCompat.getDrawable(this, R.drawable.bg_danger_button)
+            pane.closeButton.setColorFilter(getColor(R.color.danger))
+            pane.reopenButton.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button)
+        }
     }
 
     private fun updateEnergySaverToggle(button: ImageButton) {
@@ -2437,6 +2518,16 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                     pane.webView.visibility = View.VISIBLE
                     pane.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
                 }
+                // blockNetworkImage stops the page from even fetching/
+                // decoding/painting images while energy saver is on — this
+                // is on top of the INVISIBLE change above (which already
+                // covers panes you can't see at all), so it also helps a
+                // pane you ARE currently looking at (e.g. fullscreen or the
+                // grid) skip the image-decoding/painting cost. It does not
+                // touch JS, timers, layout, or any game logic — a game that
+                // reads pixel colors from its own canvas rather than
+                // relying on <img>/CSS background images is unaffected.
+                pane.webView.settings.blockNetworkImage = enabled
             }
         } else {
             panes.forEach { pane -> pane.webView.alpha = if (enabled) 0f else 1f }
@@ -2492,26 +2583,20 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     }
 
     private fun minimizeToPictureInPicture() {
-          // "PiP" here means the floating bubble, not Android's native PiP
-          // window: the goal is for pokeidle.io (and every other pane) to
-          // keep running exactly as if the app were still open on screen —
-          // no reflow into a tiny PiP surface, no reconnect. moveTaskToBack
-          // sends the whole Activity to the background (same as pressing
-          // Home), which is exactly what onStop()/onUserLeaveHint() already
-          // handle by starting AutoClickForegroundService and keeping every
-          // WebView's timers running. All that's added here is asking that
-          // service to also show the tap-to-return bubble.
-          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
-              pendingBubbleRequestAfterOverlayPermission = true
-              startActivity(
-                  Intent(
-                      Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                      Uri.parse("package:$packageName"),
-                  )
-              )
-              Toast.makeText(this, R.string.floating_bubble_permission_required, Toast.LENGTH_LONG).show()
-              return
-          }
+          // FEATURE FLAG (2026-09-28): the floating bubble was removed at
+          // the user's request. Investigation this session found that
+          // moveTaskToBack() takes the Activity fully out of the screen
+          // composition, which is what actually causes pokeidle.io to
+          // disconnect — no in-app overlay (this bubble included) can
+          // prevent that, because the WebView keeps running but is no
+          // longer being drawn on screen at all. The one thing that does
+          // work is Android's own user-initiated floating/freeform window
+          // (already used manually), which has no public API for an app to
+          // trigger on its own. Rather than ship a bubble that gives a false
+          // sense of "this keeps the game connected", minimizing now stays a
+          // plain background minimize: the auto-click foreground service
+          // still starts so click automation keeps running, but there is no
+          // tap-to-return bubble drawn over other apps anymore.
           requestIgnoreBatteryOptimizationsIfNeeded()
           startBackgroundService(
               action = if (panes.any { it.isAutoClicking }) {
@@ -2519,7 +2604,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               } else {
                   AutoClickForegroundService.ACTION_START_BROWSER
               },
-              showFloatingBubble = true,
           )
           moveTaskToBack(true)
       }
@@ -2695,6 +2779,45 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         webView.loadUrl(toDestinationUrl(input))
     }
 
+    // Replaces the old minimize-to-bubble button. Takes the URL currently
+    // open in the pane the user is looking at (the fullscreen one if any,
+    // otherwise the first open pane) and loads that same URL into every
+    // other open pane — a quick way to point all 4 instances at the same
+    // page at once, e.g. to relaunch pokeidle.io on every pane after a
+    // manual reconnect.
+    private fun broadcastCurrentUrlToAllPanes() {
+        val sourceIndex = fullscreenPaneIndex?.takeIf { it in panes.indices && panes[it].isOpen }
+            ?: panes.indices.firstOrNull { panes[it].isOpen }
+        val sourcePane = sourceIndex?.let { panes.getOrNull(it) } ?: return
+        val sourceUrl = (sourcePane.webView.url ?: sourcePane.lastUrl)
+            ?.takeIf { it.isNotBlank() && it != "about:blank" }
+            ?: return
+        var appliedCount = 0
+        panes.forEachIndexed { index, pane ->
+            if (index == sourceIndex || !pane.isOpen) return@forEachIndexed
+            loadInput(pane.webView, sourceUrl)
+            appliedCount++
+        }
+        if (appliedCount > 0) {
+            Toast.makeText(this, R.string.broadcast_url_to_all_done, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Long-press on the same broadcast button: reloads every currently open
+    // pane's WebView at once, e.g. to reconnect all 4 pokeidle.io instances
+    // after they were manually reconnected one at a time.
+    private fun reloadAllPanes() {
+        var reloadedCount = 0
+        panes.forEach { pane ->
+            if (!pane.isOpen) return@forEach
+            pane.webView.reload()
+            reloadedCount++
+        }
+        if (reloadedCount > 0) {
+            Toast.makeText(this, R.string.reload_all_done, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun toDestinationUrl(input: String): String {
         val parsed = Uri.parse(input)
         val hasHttpScheme = parsed.scheme.equals("http", ignoreCase = true) || parsed.scheme.equals("https", ignoreCase = true)
@@ -2737,17 +2860,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
           isActivityVisible = true
           if (!panes.any { it.isAutoClicking }) {
               stopService(Intent(this, AutoClickForegroundService::class.java))
-          }
-          if (pendingBubbleRequestAfterOverlayPermission) {
-              pendingBubbleRequestAfterOverlayPermission = false
-              if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(this)) {
-                  // Permission granted while the user was on the system
-                  // settings screen: honor the original minimize request now
-                  // instead of making them tap the button a second time.
-                  minimizeToPictureInPicture()
-              } else {
-                  Toast.makeText(this, R.string.floating_bubble_permission_denied, Toast.LENGTH_SHORT).show()
-              }
           }
       }
 
