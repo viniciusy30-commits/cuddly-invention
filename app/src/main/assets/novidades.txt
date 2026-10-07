@@ -1,0 +1,118 @@
+#id 2026-10-07-r
+#titulo Streamings com a cara de cada um e frases que mudam com a nota
+- Onde assistir: em vez de escrever, agora você toca nos streamings (Netflix, Viki, Disney+, Prime Video, HBO Max, Apple TV+, Paramount+, Globoplay, YouTube, Crunchyroll, iQIYI e WeTV), cada um com o símbolo e a cor da marca. Dá para marcar mais de um.
+- Botão "Outro": crie um lugar seu (Telegram, DVD, site...) escolhendo o nome e a cor. O que você já tinha escrito antes continua aparecendo.
+- Na tela do dorama o "Onde assistir" aparece com as etiquetas coloridas.
+- Frases por nota: notas de 1 a 4 mostram "Terminei por educação", de 5 a 7 uma frase de meme (igual para todos os gêneros) e de 8 a 10 a frase única do gênero, que já existia.
+- Ao editar um gênero dá para mudar as 3 frases (notas 1-4, 5-7 e 8-10).
+- Doramas sem nota não mostram nenhuma frase.
+- Leitura mais fácil: textos apagados ficaram mais fortes, os chips de filtro têm cor de texto mais legível, e na tela do dorama as letras das caixas ficaram um pouco maiores e com sombrinha, mantendo as cores de sempre.
+- Início: o selo do gênero saiu de cima da capa e foi para o lado direito do título, centralizado.
+- Estante: em "Outros gêneros" dá para marcar vários (mostra os doramas que têm todos os marcados) e o botão "Novo gênero" saiu dos filtros (continua em Config.).
+- Início: o streaming aparece só com o símbolo da marca, centralizado e sem caixinha em volta; na Estante (lista e grade) aparece a etiqueta com o símbolo e o nome, nas cores da marca; as bolinhas de ano, episódios e onde assistir subiram, e o selo do gênero ficou menor e mais afastado da capa e da borda.
+
+#id 2026-10-07-q
+#titulo Elenco mais limpinho e trilha sonora mais suave
+- Elenco: sumiu o retângulo escuro em volta da foto de cada ator e também o selo do gênero que ficava atrás da foto. Agora só o círculo com o nome embaixo.
+- Elenco: "Elenco" e a quantidade de pessoas ficam na mesma linha; a frase do gênero saiu do cartão.
+- Trilha sonora: o escurecer ao dar play pela primeira vez agora é uma animação suave e contínua. O áudio carrega em segundo plano, então a tela não trava mais no primeiro toque.
+- Trilha sonora: o botão de play agora fica bem centralizado.
+- Trilha sonora: só o botão de play liga e desliga a música (tocar no disco ou nas ondas não toca mais; as ondas só pulam depois que a música já está tocando).
+- Trilha sonora: refiz do zero o escurecer ao dar play. Agora é uma transição única e suave, e a música só começa quando ela termina.
+- Elenco: os 3 primeiros atores ficam centralizados no cartão.
+- Elenco: ao arrastar a fileira de atores, as bordas agora somem suavemente em vez de cortar seco.
+- Trilha sonora: o primeiro play, toda vez que você entra no dorama, agora escurece suave também (o player carrega em segundo plano e a animação acompanha o relógio, sem travar).
+- Tipo, status, país e onde assistir: quando um nome quebra em 2 linhas (ex.: Coreia do Sul), os ícones e títulos continuam alinhados na mesma altura.
+- Casal favorito: tirei a fita adesiva transparente de cima da polaroid.
+
+#id 2026-10-07-p
+#titulo Cores de verdade nos gêneros e outros gêneros sem limite
+- Estante, edição e filtros: os gêneros agora aparecem com as cores vivas deles, igualzinho na tela do dorama (fundo colorido, texto branco). Os com várias cores, como o LGBTQ+, mostram o degradê.
+- Na edição do dorama, nova parte "Aparecem na Estante": escolha até 2 dos outros gêneros para aparecerem no cartão (o principal sempre aparece).
+- Em Config., nova seção "Outros gêneros": edite, apague, crie os seus e restaure os padrões. Dá para misturar quantas cores quiser (toque no + para adicionar uma cor).
+- Grade da Estante: cada dorama virou um cartão completo, igual ao da lista: capa grande com selo, coração e status, e embaixo título, ano e país, gêneros, nota em corações, onde assistir e progresso.
+- Elenco bem mais bonito: cartão enfeitado na cor do gênero, com cabeçalho e contagem de pessoas, e um crachá por ator com foto grande, selo do gênero e nome. Tudo temático: símbolos, cores e frase do gênero principal do dorama.
+- Elenco: rolar a fileira de atores para o lado não troca mais de dorama.
+- Trilha sonora: ao tocar, o cartão escurece devagar e o disco ganha um foco de luz; ao pausar, clareia suavemente.
+
+#id 2026-10-07-o
+#titulo Trilha sonora e casal favorito bem mais caprichados
+- Trilha sonora: agora é um toca-discos fofo. Um vinil com o símbolo do gênero gira, o braço desce no disco, o botão de play ganha ondinhas e os símbolos do gênero giram em volta dele, e notinhas misturadas com esses símbolos sobem enquanto toca.
+- As ondas embaixo mostram o quanto já tocou e dá para tocar nelas para pular para outro pedaço. O nome da música não aparece mais. Tudo usa as cores do gênero do dorama.
+- Casal favorito: virou uma polaroid grande e centralizada, com fita adesiva, adesivo do gênero, coração batendo, os nomes escritos à mão (com um coração entre eles) e corações subindo no fundo.
+
+#id 2026-10-07-n
+#titulo Fotos do elenco e do casal
+- Na edição, o elenco virou uma lista: cada ator ou atriz tem nome e uma foto (toque no círculo para escolher). O casal favorito também tem foto.
+- Na tela do dorama aparece o cartão "Elenco", com as fotinhas redondas e o nome embaixo de cada uma, e o cartão "Casal favorito" com a foto grande.
+
+#id 2026-10-07-m
+#titulo Trilha sonora de cada dorama
+- Na edição do dorama tem o cartão "Trilha sonora": escolha o arquivo de áudio que você baixou.
+- Na tela do dorama aparece um player com play e pause e uma barrinha de progresso. A música para sozinha quando você sai da tela.
+
+#id 2026-10-07-l
+#titulo Cores mescladas mais vivas na Estante
+- Os gêneros com cores mescladas (como o LGBTQ+) agora aparecem com as cores vivas também na lista e na grade da Estante.
+
+#id 2026-10-07-k
+#titulo Série ou filme
+- Na edição do dorama tem o campo "Tipo": Série ou Filme.
+- Na tela do dorama, o cartão de informações ganhou a coluna TIPO.
+
+#id 2026-10-06-j
+#titulo Arco-íris no LGBTQ+ e cores mescladas nos outros gêneros
+- O gênero LGBTQ+ agora tem as cores da bandeira (arco-íris) nos filtros, na edição e na tela do dorama.
+- Ao criar ou editar um "outro gênero", dá para escolher até 3 cores e elas se mesclam num degradê. Se repetir a mesma cor, não mescla.
+
+#id 2026-10-06-i
+#titulo Grade da Estante bem mais caprichada
+- Na visualização em grade, cada dorama virou um cartão: capa grande de pôster com cantos arredondados, selo do gênero, coração, nota e status em cima de um degradê.
+- Embaixo da capa: título, ano e país, os gêneros escolhidos, corações da nota, onde assistir e a barrinha de progresso com a porcentagem.
+
+#id 2026-10-06-h
+#titulo Escolha os gêneros que aparecem na Estante
+- Na edição do dorama, em "Aparecem na Estante", você escolhe até 2 gêneros extras para aparecerem no cartão. O gênero principal sempre aparece.
+
+#id 2026-10-06-g
+#titulo Vários outros gêneros no filtro e link na edição
+- Nos filtros da Estante, em "Outros gêneros" dá para marcar mais de um: aparecem só os doramas que têm todos os marcados. "Todos" limpa a escolha.
+- O botão de link saiu da tela do dorama e agora fica na edição, em Detalhes ("Link de início"). Deixe vazio para remover.
+- O botão "Continuar assistindo" ficou centralizado, ocupando a largura toda.
+
+#id 2026-10-06-f
+#titulo Status, país e onde assistir separados dos gêneros
+- Na tela do dorama, os gêneros ficam sozinhos no topo e Status, País e Onde assistir ganharam um cartãozinho próprio logo abaixo, com bolinhas de ícone e colunas separadas.
+
+#id 2026-10-06-e
+#titulo Outros gêneros editáveis e mais cores
+- Em Config., agora tem a seção "Outros gêneros": dá para editar nome, cor e símbolo, excluir e criar os seus. Os que vêm com o app podem ser excluídos e voltam em "Restaurar padrões".
+- Mais cores para escolher (50+ prontas) e duas barrinhas para misturar a cor do seu jeito, tanto nos gêneros principais quanto nos outros gêneros.
+- Mais símbolos para escolher na hora de criar ou editar um gênero.
+- O botão "Novo gênero" saiu dos filtros da Estante; para criar, é só ir em Config.
+- Os gêneros principais ganharam o nome "Gêneros principais" nas configurações.
+- O Perfil agora fica no topo das configurações.
+- O backup .zip também guarda os seus outros gêneros (criados, editados e excluídos).
+
+#id 2026-10-06-d
+#titulo Troca de doramas mais fofa e Outros gêneros
+- Ao arrastar de um dorama para outro, o vão no meio agora fica cheio de símbolos caindo, misturando as categorias dos dois doramas.
+- A página sai e entra como um cartãozinho de cantos redondos, com uma molinha no final.
+- A tela do dorama não tem mais o Status: para mudar, use o lápis (editar).
+- Novo: "Outros gêneros" nos filtros (Policial, Jurídico, Zumbi, Chaebol e mais), cada um com cor e símbolo próprios. Eles só filtram e não mudam as cores nem os símbolos do tema.
+- Na edição, todos os gêneros extras ficam numa seção só: "Outros gêneros".
+
+#id 2026-10-06-c
+#titulo Tela de atualizações mais limpa
+- Em Config., a parte Atualizações agora mostra só a versão instalada e o botão para verificar.
+- Para rever a lista de novidades, toque na versão instalada.
+
+#id 2026-10-06-b
+#titulo Resumo do que mudou a cada atualização
+- Agora, toda vez que o app atualiza, aparece este aviso com as novidades da versão nova.
+
+#id 2026-10-06-a
+#titulo Backup completo e textos que cabem
+- O backup agora é um arquivo .zip com tudo: doramas, capas, gêneros, ordem, links e ajustes.
+- Em Config., "Baixar backup" salva o arquivo onde você escolher e "Restaurar" lê o arquivo, substituindo tudo ou mesclando.
+- Nomes de categorias e frases de gênero diminuem sozinhos para caber, em vez de sumirem.
