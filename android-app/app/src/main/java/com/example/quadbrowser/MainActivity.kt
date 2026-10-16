@@ -12,13 +12,13 @@ import android.content.res.Configuration
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.PowerManager
 import android.os.SystemClock
+import android.app.PictureInPictureParams
 import android.view.Gravity
 import android.net.Uri
-import android.provider.Settings
 import android.os.Bundle
 import android.util.Log
+import android.util.Rational
 import android.util.Patterns
 import android.view.MotionEvent
 import android.view.View
@@ -88,63 +88,6 @@ class MainActivity : AppCompatActivity() {
         const val PANE_NAME_PREFIX = "pane_name_"
         const val PANE_COLOR_PREFIX = "pane_color_"
         const val PANE_AVATAR_PREFIX = "pane_avatar_"
-
-        // FEATURE FLAG (2026-09-29): see the detailed comment at
-        // toggleTheme()/applyThemeToExistingViews(). Set to false to restore
-        // the old recreate()-based theme switch (destroys/reconnects every
-        // WebView on every toggle).
-        const val APPLY_THEME_WITHOUT_RECREATE = true
-
-        // FEATURE FLAG (2026-09-28): see the detailed comment at
-        // setEnergySaverEnabled(). Set to false to restore the old
-        // visual-only energy saver (WebViews stay fully active underneath).
-        const val REAL_ENERGY_SAVER_PAUSES_INACTIVE_WEBVIEWS = true
-
-        // FEATURE FLAG (2026-09-27): see the detailed comment at the
-        // onPageStarted/onPageFinished call sites below. Set to false to
-        // fully disable the visibility spoofing and go back to reporting the
-        // WebView's real visibility/focus state to every page.
-        const val SPOOF_PAGE_VISIBILITY_TO_PREVENT_DISCONNECT = true
-
-        // Overrides document.hidden / document.visibilityState / hasFocus()
-        // to always report "visible and focused", and swallows
-        // visibilitychange/blur/pagehide/webkitvisibilitychange before any
-        // of the page's own listeners run — so a game like pokeidle.io that
-        // pauses or disconnects on tab-hidden never sees that signal, even
-        // though minimizing the app or showing the floating bubble really
-        // does take the Activity out of the foreground. This only touches
-        // what JavaScript running inside the page can observe; it doesn't
-        // change anything about how Android itself manages the Activity.
-        private const val VISIBILITY_SPOOF_SCRIPT = """
-            (function() {
-                if (window.__quadbrowserVisibilitySpoofInstalled) return;
-                window.__quadbrowserVisibilitySpoofInstalled = true;
-                try {
-                    Object.defineProperty(document, 'hidden', { get: function() { return false; }, configurable: true });
-                } catch (e) {}
-                try {
-                    Object.defineProperty(document, 'visibilityState', { get: function() { return 'visible'; }, configurable: true });
-                } catch (e) {}
-                try {
-                    Object.defineProperty(document, 'webkitHidden', { get: function() { return false; }, configurable: true });
-                } catch (e) {}
-                try {
-                    Object.defineProperty(document, 'webkitVisibilityState', { get: function() { return 'visible'; }, configurable: true });
-                } catch (e) {}
-                try {
-                    document.hasFocus = function() { return true; };
-                } catch (e) {}
-                var blockedEvents = ['visibilitychange', 'webkitvisibilitychange', 'blur', 'pagehide', 'freeze'];
-                blockedEvents.forEach(function(eventName) {
-                    window.addEventListener(eventName, function(e) {
-                        e.stopImmediatePropagation();
-                    }, true);
-                    document.addEventListener(eventName, function(e) {
-                        e.stopImmediatePropagation();
-                    }, true);
-                });
-            })();
-        """
         const val AUTO_PRESET_PREFIX = "auto_preset_"
         const val SETTINGS_PREFS = "quad_browser_settings"
         const val DARK_THEME_KEY = "dark_theme"
@@ -329,15 +272,14 @@ class MainActivity : AppCompatActivity() {
             updateThemeToggle(this)
             setOnClickListener { toggleTheme() }
         }
-        findViewById<ImageButton>(R.id.broadcast_url_button).apply {
-            setOnClickListener { broadcastCurrentUrlToAllPanes() }
-            // Long-press reuses the same button for a second, related bulk
-            // action: reload every open pane at once, instead of adding a
-            // separate button/menu for it.
-            setOnLongClickListener { reloadAllPanes(); true }
+        findViewById<ImageButton>(R.id.background_button).setOnClickListener {
+            minimizeToPictureInPicture()
         }
         findViewById<ImageButton>(R.id.contact_button).setOnClickListener {
             showContactDialog()
+        }
+        findViewById<ImageButton>(R.id.settings_button).setOnClickListener {
+            showSettingsDialog()
         }
         startContactRealtimeListener()
 
@@ -1403,38 +1345,8 @@ class MainActivity : AppCompatActivity() {
         pane.clickLayer.post { renderAutoClickEditorWhenReady(index) }
       }
 
-      // FEATURE FLAG (2026-09-27): fixes auto-click points created while the
-      // editor is open on the small 2x2 grid cell landing on the wrong
-      // element once the pane is viewed fullscreen or in the floating
-      // bubble. Before this fix, the reference size was whatever host the
-      // editor happened to be opened in (grid cell OR fullscreen), so a
-      // point added in the grid was stored relative to the small cell size;
-      // dispatchClick would then wrongly re-scale it as if that had been the
-      // fullscreen size, landing far from the intended element.
-      //
-      // Set this to false to instantly restore the previous (buggy but
-      // previously-shipped) behavior without reverting any other change in
-      // this file, if this fix ever needs to be backed out quickly.
-      private val USE_FULLSCREEN_LOCKED_AUTOCLICK_REFERENCE = true
-
       private fun captureAutoClickReference(index: Int) {
           val pane = panes.getOrNull(index) ?: return
-          if (USE_FULLSCREEN_LOCKED_AUTOCLICK_REFERENCE) {
-              // Always normalize click points against the true fullscreen
-              // content surface — the same one applyGridWebViewViewport()
-              // uses via thumbnailReferenceSize() to compute the grid zoom —
-              // no matter which host (grid cell, pager, fullscreen, bubble)
-              // the auto-click editor happens to be open on right now. This
-              // keeps a single, stable coordinate space so dispatchClick()'s
-              // re-projection from that space onto any host's real pixel
-              // size is always correct, regardless of where a point was
-              // created or edited.
-              val (referenceWidth, referenceHeight) = thumbnailReferenceSize()
-              if (referenceWidth <= 1 || referenceHeight <= 1) return
-              pane.autoClickReferenceWidth = referenceWidth.toFloat()
-              pane.autoClickReferenceHeight = referenceHeight.toFloat()
-              return
-          }
           val layerWidth = pane.clickLayer.width
           val layerHeight = pane.clickLayer.height
           if (layerWidth <= 1 || layerHeight <= 1) return
@@ -1898,7 +1810,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
            }
            startBackgroundService(action)
        }
-          private fun startBackgroundService(action: String) {
+          private fun startBackgroundService(action: String, showFloatingBubble: Boolean = false) {
               // Never start the foreground service while the POST_NOTIFICATIONS
               // system dialog is open — see notificationPermissionDialogPending's
               // comment. onRequestPermissionsResult() catches up and calls this
@@ -1906,6 +1818,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
               if (notificationPermissionDialogPending) return
               val serviceIntent = Intent(this, AutoClickForegroundService::class.java)
                   .setAction(action)
+                  .putExtra(AutoClickForegroundService.EXTRA_SHOW_BUBBLE, showFloatingBubble)
               try {
                   ContextCompat.startForegroundService(this, serviceIntent)
               } catch (error: IllegalStateException) {
@@ -1984,6 +1897,25 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     private fun updateContactButtonVisibility(showingGrid: Boolean = !isPagerMode && fullscreenPaneIndex == null) {
         val button = findViewById<ImageButton>(R.id.contact_button)
         button.visibility = if (showingGrid && contactOptions.isNotEmpty()) View.VISIBLE else View.GONE
+        // Mesmo motivo do botão de contato: no modo "uma instância por aba" a barra
+        // de cima já está cheia com as bolinhas de troca, então só aparece na grade.
+        findViewById<ImageButton>(R.id.settings_button).visibility = if (showingGrid) View.VISIBLE else View.GONE
+    }
+
+    private var startupChecksDone = false
+
+    private fun showSettingsDialog() {
+        val labels = arrayOf(
+            getString(R.string.settings_check_update),
+            getString(R.string.settings_whats_new),
+        )
+        AlertDialog.Builder(this)
+            .setTitle(getString(R.string.settings_dialog_title) + " · " + getString(R.string.settings_version, Updater.installedVersionName(this)))
+            .setItems(labels) { _, which ->
+                if (which == 0) Updater.manualCheck(this) else WhatsNew.showAll(this)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun showContactDialog() {
@@ -2154,6 +2086,12 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     /** Called when access becomes valid (initial check, listener update, or extension). */
     private fun onAccessGranted(expiresAtMillis: Long?) {
         accessExpiresAtMillis = expiresAtMillis
+        if (!startupChecksDone) {
+            startupChecksDone = true
+            // "O que mudou" (1ª abertura após atualizar) e aviso automático de versão nova.
+            WhatsNew.showIfNew(this)
+            Updater.autoCheck(this)
+        }
         updateAccessTimeRemainingLabel()
         accessCountdownHandler.removeCallbacks(accessCountdownRunnable)
         accessCountdownHandler.post(accessCountdownRunnable)
@@ -2394,85 +2332,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         isDarkTheme = !isDarkTheme
         getSharedPreferences(SETTINGS_PREFS, MODE_PRIVATE).edit().putBoolean(DARK_THEME_KEY, isDarkTheme).apply()
         AppCompatDelegate.setDefaultNightMode(if (isDarkTheme) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO)
-        // FEATURE FLAG (2026-09-29): this used to call recreate(), which
-        // destroys and rebuilds the whole Activity — including every
-        // WebView, which tears down its render process and reconnects
-        // whatever game/site was loaded, on every theme toggle. The
-        // Activity's configChanges already includes "uiMode" (see
-        // AndroidManifest.xml), so the system will not recreate it on its
-        // own either; recreate() was the only thing forcing it to happen.
-        // Removing that call means every already-inflated View keeps
-        // whatever colors/drawables it resolved at inflate time, so they
-        // must be re-applied by hand here, resource by resource, using the
-        // same @color/@drawable references XML already uses — this reuses
-        // the current Resources (which now point at values-night/ or
-        // values/ correctly) rather than hardcoding any hex value.
-        //
-        // Set to false to restore the old recreate()-based behavior.
-        if (APPLY_THEME_WITHOUT_RECREATE) {
-            applyThemeToExistingViews()
-        } else {
-            recreate()
-        }
-    }
-
-    // Re-reads every themed color/drawable resource by ID and re-assigns it
-    // to the already-inflated Views, instead of destroying/recreating the
-    // Activity. Must be kept in sync with activity_main.xml/styles.xml:
-    // any new themed View added there should get a line here too.
-    private fun applyThemeToExistingViews() {
-        findViewById<View>(R.id.root_container)?.setBackgroundColor(getColor(R.color.app_background))
-        findViewById<View>(R.id.app_toolbar)?.background = ContextCompat.getDrawable(this, R.drawable.bg_app_toolbar)
-        findViewById<View>(R.id.access_time_remaining)?.setBackgroundColor(getColor(R.color.grid_background))
-        findViewById<View>(R.id.browser_content)?.setBackgroundColor(getColor(R.color.grid_background))
-        findViewById<View>(R.id.browser_grid)?.setBackgroundColor(getColor(R.color.grid_background))
-        findViewById<View>(R.id.browser_pager)?.setBackgroundColor(getColor(R.color.grid_background))
-        findViewById<View>(R.id.fullscreen_overlay)?.setBackgroundColor(getColor(R.color.pane_background))
-        findViewById<TextView>(R.id.profile_error)?.let {
-            it.setBackgroundColor(getColor(R.color.pane_background))
-            it.setTextColor(getColor(R.color.text_primary))
-        }
-        val textPrimary = getColor(R.color.text_primary)
-        val textSecondary = getColor(R.color.text_secondary)
-        val accent = getColor(R.color.accent)
-        findViewById<TextView>(R.id.access_time_remaining)?.setTextColor(textSecondary)
-        listOf(
-            R.id.view_mode_toggle, R.id.theme_toggle, R.id.broadcast_url_button, R.id.contact_button,
-        ).forEach { id ->
-            findViewById<ImageButton>(id)?.apply {
-                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_theme_button)
-                setColorFilter(accent)
-            }
-        }
-        // energy_saver_toggle keeps its own on/off coloring — refresh it via
-        // its existing update function instead of forcing the default tint.
-        findViewById<ImageButton>(R.id.energy_saver_toggle)?.let { updateEnergySaverToggle(it) }
-        findViewById<ImageButton>(R.id.theme_toggle)?.let { updateThemeToggle(it) }
-        listOf(R.id.pager_previous, R.id.pager_next).forEach { id ->
-            findViewById<ImageButton>(id)?.apply {
-                background = ContextCompat.getDrawable(this@MainActivity, R.drawable.bg_icon_button)
-                setColorFilter(textPrimary)
-            }
-        }
-        listOf(R.id.pager_dot_1, R.id.pager_dot_2, R.id.pager_dot_3, R.id.pager_dot_4).forEach { id ->
-            findViewById<TextView>(id)?.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_badge)
-        }
-        panes.forEach { pane ->
-            pane.container.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_card)
-            (pane.dragHandle.parent as? View)?.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_toolbar)
-            pane.avatarView.background = ContextCompat.getDrawable(this, R.drawable.bg_pane_badge)
-            pane.titleView.setTextColor(textPrimary)
-            pane.subtitleView.setTextColor(textSecondary)
-            pane.webView.setBackgroundColor(getColor(R.color.pane_background))
-            pane.emptyState.setBackgroundColor(getColor(R.color.pane_background))
-            listOf(pane.navigateButton, pane.reloadButton, pane.fullscreenButton, pane.autoClickButton).forEach { button ->
-                button.background = ContextCompat.getDrawable(this, R.drawable.bg_icon_button)
-                button.setColorFilter(textPrimary)
-            }
-            pane.closeButton.background = ContextCompat.getDrawable(this, R.drawable.bg_danger_button)
-            pane.closeButton.setColorFilter(getColor(R.color.danger))
-            pane.reopenButton.background = ContextCompat.getDrawable(this, R.drawable.bg_action_button)
-        }
+        recreate()
     }
 
     private fun updateEnergySaverToggle(button: ImageButton) {
@@ -2485,53 +2345,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     private fun setEnergySaverEnabled(enabled: Boolean) {
         if (!::energySaverOverlay.isInitialized) return
         isEnergySaverEnabled = enabled
-        // FEATURE FLAG (2026-09-28, revised): the energy saver used to only
-        // hide the WebViews visually (alpha = 0) while leaving every one of
-        // them fully rendering underneath — so it looked like battery saving
-        // but cost the same GPU compositing as normal use.
-        //
-        // IMPORTANT: every pane must keep actually running (JS, timers,
-        // network) while energy saver is on, auto-clicker active or not —
-        // the user explicitly needs the game connections to stay alive
-        // (this is the same requirement behind the visibility-spoof fix
-        // above), so this deliberately never calls webView.onPause() and
-        // never stops timers. The real saving here is display-only: setting
-        // visibility = GONE (not just alpha = 0) tells Android to skip
-        // measuring/drawing/compositing that WebView's frames entirely,
-        // and dropping the hardware layer avoids holding a GPU texture for
-        // a surface nobody is looking at. Nothing about the page's own
-        // execution changes, so nothing here can reintroduce a disconnect.
-        // INVISIBLE (not GONE) is used deliberately: GONE would remove the
-        // WebView from layout and could shrink the size it reports to the
-        // page (the same kind of viewport mismatch already fixed elsewhere
-        // in this file); INVISIBLE skips drawing/compositing while keeping
-        // its measured size exactly as it was.
-        //
-        // Set to false to instantly go back to the old alpha-only behavior
-        // without reverting anything else.
-        if (REAL_ENERGY_SAVER_PAUSES_INACTIVE_WEBVIEWS) {
-            panes.forEach { pane ->
-                if (enabled) {
-                    pane.webView.visibility = View.INVISIBLE
-                    pane.webView.setLayerType(View.LAYER_TYPE_NONE, null)
-                } else {
-                    pane.webView.visibility = View.VISIBLE
-                    pane.webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
-                }
-                // blockNetworkImage stops the page from even fetching/
-                // decoding/painting images while energy saver is on — this
-                // is on top of the INVISIBLE change above (which already
-                // covers panes you can't see at all), so it also helps a
-                // pane you ARE currently looking at (e.g. fullscreen or the
-                // grid) skip the image-decoding/painting cost. It does not
-                // touch JS, timers, layout, or any game logic — a game that
-                // reads pixel colors from its own canvas rather than
-                // relying on <img>/CSS background images is unaffected.
-                pane.webView.settings.blockNetworkImage = enabled
-            }
-        } else {
-            panes.forEach { pane -> pane.webView.alpha = if (enabled) 0f else 1f }
-        }
+        panes.forEach { pane -> pane.webView.alpha = if (enabled) 0f else 1f }
         energySaverOverlay.visibility = if (enabled) View.VISIBLE else View.GONE
         if (enabled) {
             val activeInstances = panes.count { it.isOpen }
@@ -2555,57 +2369,49 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             if (isPagerMode) R.string.view_mode_switch_to_grid else R.string.view_mode_switch_to_paged,
         )
     }
-    /**
-     * Some manufacturers (Xiaomi/MIUI, Samsung, etc.) kill foreground
-     * services more aggressively than stock Android once the battery
-     * optimizer decides an app is "inactive", even with a foreground
-     * notification showing. Asking to be exempted is what actually keeps
-     * the panes running indefinitely in the background rather than getting
-     * silently frozen after a while, which is the whole point of the
-     * floating bubble. This is a one-time system dialog; if the user
-     * declines, the bubble still works, it just isn't as reliably
-     * protected from being killed on those stricter devices.
-     */
-    private fun requestIgnoreBatteryOptimizationsIfNeeded() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
-        val powerManager = getSystemService(PowerManager::class.java) ?: return
-        if (powerManager.isIgnoringBatteryOptimizations(packageName)) return
-        try {
-            startActivity(
-                Intent(
-                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
-                    Uri.parse("package:$packageName"),
-                )
-            )
-        } catch (error: android.content.ActivityNotFoundException) {
-            Log.w("QuadBrowser", "Battery optimization settings screen unavailable", error)
-        }
-    }
-
     private fun minimizeToPictureInPicture() {
-          // FEATURE FLAG (2026-09-28): the floating bubble was removed at
-          // the user's request. Investigation this session found that
-          // moveTaskToBack() takes the Activity fully out of the screen
-          // composition, which is what actually causes pokeidle.io to
-          // disconnect — no in-app overlay (this bubble included) can
-          // prevent that, because the WebView keeps running but is no
-          // longer being drawn on screen at all. The one thing that does
-          // work is Android's own user-initiated floating/freeform window
-          // (already used manually), which has no public API for an app to
-          // trigger on its own. Rather than ship a bubble that gives a false
-          // sense of "this keeps the game connected", minimizing now stays a
-          // plain background minimize: the auto-click foreground service
-          // still starts so click automation keeps running, but there is no
-          // tap-to-return bubble drawn over other apps anymore.
-          requestIgnoreBatteryOptimizationsIfNeeded()
-          startBackgroundService(
-              action = if (panes.any { it.isAutoClicking }) {
-                  AutoClickForegroundService.ACTION_START
+          if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+              Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+              return
+          }
+
+          // The floating (PiP) window used to always show one instance at
+          // real size. Since grid/pager view was added, minimizing while in
+          // grid or pager mode left every pane fullscreen-less, so all 4
+          // instances got squeezed into the tiny PiP window together — that
+          // is the "compressed" floating window and the auto-click markers
+          // landing in the wrong place. Force whichever instance the user is
+          // currently looking at into fullscreen first, so PiP always shows
+          // a single WebView at its real measured size, exactly like before.
+          if (fullscreenPaneIndex == null) {
+              val candidate = if (isPagerMode) {
+                  paneOrder.getOrNull(instancePager.currentPage)
               } else {
-                  AutoClickForegroundService.ACTION_START_BROWSER
-              },
-          )
-          moveTaskToBack(true)
+                  paneOrder.firstOrNull { panes.getOrNull(it)?.isOpen == true }
+              }
+              candidate?.takeIf { it in panes.indices && panes[it].isOpen }?.let { toggleFullscreen(it) }
+          }
+
+          val content = findViewById<View>(R.id.browser_content)
+          val width = content.width.coerceAtLeast(1)
+          val height = content.height.coerceAtLeast(1)
+          val ratio = (width.toFloat() / height.toFloat()).coerceIn(0.418f, 2.39f)
+          val denominator = 1000
+          val numerator = (ratio * denominator).roundToInt().coerceIn(418, 2390)
+          val paramsBuilder = PictureInPictureParams.Builder()
+              .setAspectRatio(Rational(numerator, denominator))
+          if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+              paramsBuilder.setSeamlessResizeEnabled(true)
+          }
+
+          try {
+              if (!enterPictureInPictureMode(paramsBuilder.build())) {
+                  Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+              }
+          } catch (error: IllegalStateException) {
+              Log.w("QuadBrowser", "Unable to enter picture-in-picture mode", error)
+              Toast.makeText(this, R.string.picture_in_picture_unavailable, Toast.LENGTH_SHORT).show()
+          }
       }
 
     
@@ -2684,26 +2490,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                 updatePaneIdentity(paneIndex, url, null)
                 persistPaneUrl(paneIndex, url)
                 maybeChooseGoogleAccount(paneIndex, url)
-                // FEATURE FLAG (2026-09-27): fixes pokeidle.io (and similar
-                // sites that watch document.visibilityState / the
-                // visibilitychange event) disconnecting the moment the app
-                // is minimized or the floating bubble is shown — even though
-                // resumeTimers() already keeps the WebView's JS actually
-                // running in the background. The disconnect is not caused by
-                // JS being paused; it's the page itself reacting to Chromium
-                // reporting the tab as hidden/blurred once the Activity
-                // leaves the foreground, the same signal a desktop browser
-                // sends when you switch tabs. This spoofs that signal at the
-                // JS layer, injected before the page's own scripts run, so
-                // the page always believes it is visible and focused no
-                // matter what the real Activity/window state is.
-                //
-                // Set to false to instantly restore the previous (real
-                // visibility reporting, but disconnect-on-minimize)
-                // behavior without touching anything else.
-                if (SPOOF_PAGE_VISIBILITY_TO_PREVENT_DISCONNECT) {
-                    view.evaluateJavascript(VISIBILITY_SPOOF_SCRIPT, null)
-                }
             }
 
             override fun onPageFinished(view: WebView, url: String) {
@@ -2720,12 +2506,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
                     }
                 }
                 view.post { view.requestLayout() }
-                // Re-apply after the page's own scripts have finished
-                // loading too, in case any of them re-read these properties
-                // once at startup rather than relying on the live getters.
-                if (SPOOF_PAGE_VISIBILITY_TO_PREVENT_DISCONNECT) {
-                    view.evaluateJavascript(VISIBILITY_SPOOF_SCRIPT, null)
-                }
             }
 
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
@@ -2777,45 +2557,6 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         val input = rawInput.trim()
         if (input.isEmpty()) return
         webView.loadUrl(toDestinationUrl(input))
-    }
-
-    // Replaces the old minimize-to-bubble button. Takes the URL currently
-    // open in the pane the user is looking at (the fullscreen one if any,
-    // otherwise the first open pane) and loads that same URL into every
-    // other open pane — a quick way to point all 4 instances at the same
-    // page at once, e.g. to relaunch pokeidle.io on every pane after a
-    // manual reconnect.
-    private fun broadcastCurrentUrlToAllPanes() {
-        val sourceIndex = fullscreenPaneIndex?.takeIf { it in panes.indices && panes[it].isOpen }
-            ?: panes.indices.firstOrNull { panes[it].isOpen }
-        val sourcePane = sourceIndex?.let { panes.getOrNull(it) } ?: return
-        val sourceUrl = (sourcePane.webView.url ?: sourcePane.lastUrl)
-            ?.takeIf { it.isNotBlank() && it != "about:blank" }
-            ?: return
-        var appliedCount = 0
-        panes.forEachIndexed { index, pane ->
-            if (index == sourceIndex || !pane.isOpen) return@forEachIndexed
-            loadInput(pane.webView, sourceUrl)
-            appliedCount++
-        }
-        if (appliedCount > 0) {
-            Toast.makeText(this, R.string.broadcast_url_to_all_done, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // Long-press on the same broadcast button: reloads every currently open
-    // pane's WebView at once, e.g. to reconnect all 4 pokeidle.io instances
-    // after they were manually reconnected one at a time.
-    private fun reloadAllPanes() {
-        var reloadedCount = 0
-        panes.forEach { pane ->
-            if (!pane.isOpen) return@forEach
-            pane.webView.reload()
-            reloadedCount++
-        }
-        if (reloadedCount > 0) {
-            Toast.makeText(this, R.string.reload_all_done, Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun toDestinationUrl(input: String): String {

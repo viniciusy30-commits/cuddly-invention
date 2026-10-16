@@ -1,0 +1,10 @@
+#id 2026-10-16-b
+#titulo Botão de PiP reposicionado
+- O botão de janela flutuante (PiP) agora fica logo depois do botão de contato
+
+#id 2026-10-16-a
+#titulo Atualização pelo próprio app
+- Novo botão ⓘ na barra de cima: verificar atualização e ver o que mudou
+- O app avisa sozinho quando sai uma versão nova (no máximo a cada 6 horas)
+- Baixa e instala a atualização por cima, sem perder seus dados
+- Esta tela "O que mudou" aparece depois de cada atualização

@@ -24,9 +24,8 @@
     <string name="instance_active">Instância %1$d • em execução</string>
     <string name="theme_switch_to_dark">Mudar para o tema escuro</string>
     <string name="theme_switch_to_light">Mudar para o tema claro</string>
-        <string name="broadcast_url_to_all">Aplicar mesmo link às 4 instâncias (toque longo: recarregar as 4)</string>
-        <string name="broadcast_url_to_all_done">Link aplicado às 4 instâncias</string>
-        <string name="reload_all_done">As 4 instâncias foram recarregadas</string>
+        <string name="minimize_to_floating_bubble">Abrir em janela flutuante</string>
+        <string name="floating_bubble_permission_required">Permita a sobreposição do Multi Account para usar o ícone flutuante.</string>
         <string name="floating_bubble_description">Abrir o Multi Account</string>
     <string name="view_mode_switch_to_paged">Mostrar uma instância por aba</string>
     <string name="pager_switch_to_instance_1">Ir para instância 1</string>
@@ -152,5 +151,24 @@
     <string name="energy_saver_status">%1$d instâncias continuam funcionando</string>
     <string name="energy_saver_status_placeholder">As instâncias continuam funcionando</string>
     <string name="energy_saver_exit">Mostrar instâncias</string>
-    <string name="energy_saver_chip_keeps_running">Jogos continuam rodando</string>
+    <string name="settings_button_description">Configurações e atualização</string>
+    <string name="settings_dialog_title">Multi Account</string>
+    <string name="settings_version">versão %1$s</string>
+    <string name="settings_check_update">Verificar atualização</string>
+    <string name="settings_whats_new">O que mudou</string>
+    <string name="update_searching">Procurando atualização…</string>
+    <string name="update_up_to_date">Você já está na versão mais nova.</string>
+    <string name="update_no_internet">Sem internet. Tente de novo mais tarde.</string>
+    <string name="update_error">Não foi possível verificar a atualização agora.</string>
+    <string name="update_available_title">Nova versão disponível</string>
+    <string name="update_available_message">A versão %1$s está pronta para baixar (você está na %2$s). Seus dados são mantidos.</string>
+    <string name="update_action">Atualizar</string>
+    <string name="update_later">Depois</string>
+    <string name="update_downloading">Baixando atualização…</string>
+    <string name="update_download_failed">Falha ao baixar a atualização. Tente de novo.</string>
+    <string name="update_permission_title">Permitir instalação</string>
+    <string name="update_permission_message">Para instalar a atualização, o Android precisa liberar \"Instalar apps desconhecidos\" para o Multi Account. Toque em Abrir configurações, ative a opção e volte para tentar de novo.</string>
+    <string name="update_permission_open">Abrir configurações</string>
+    <string name="whats_new_title">O que mudou</string>
+    <string name="whats_new_ok">Entendi</string>
 </resources>

@@ -12,8 +12,22 @@ android {
         applicationId = "com.example.quadbrowser"
         minSdk = 23
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // O número do run do GitHub vira o versionCode: é ele que o app compara
+        // com a tag da Release (v12 -> 12) para saber se há versão nova.
+        val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toIntOrNull() ?: 1
+        versionCode = run
+        versionName = "1.$run"
+    }
+
+    // Keystore FIXO: todo APK sai assinado com a mesma chave, senão o Android
+    // não deixa instalar a atualização por cima. NUNCA troque este arquivo.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("quadbrowser.keystore")
+            storePassword = "quadbrowser123"
+            keyAlias = "quadbrowser"
+            keyPassword = "quadbrowser123"
+        }
     }
 
     buildTypes {
