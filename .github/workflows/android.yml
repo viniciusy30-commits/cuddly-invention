@@ -5,16 +5,24 @@ on:
     branches:
       - main
       - master
+    paths-ignore:
+      - "_incoming/**"
 
   pull_request:
+
+  # Roda sozinho quando o "Unpack incoming zip and commit" termina com sucesso
+  workflow_run:
+    workflows: ["Unpack incoming zip and commit"]
+    types: [completed]
 
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
 
     defaults:
@@ -24,6 +32,8 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -47,10 +57,28 @@ jobs:
       - name: Build debug APK
         run: gradle assembleDebug --no-daemon
 
+      - name: Renomear APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk ../MultiAccount.apk
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: quad-browser-debug
-          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          path: MultiAccount.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Guardar commit buildado
+        id: sha
+        run: echo "value=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar versao (o app baixa daqui)
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          target_commitish: ${{ steps.sha.outputs.value }}
+          name: Multi Account v${{ github.run_number }}
+          files: MultiAccount.apk
+          make_latest: true
+          
