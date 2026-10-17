@@ -1,3 +1,13 @@
+#id 2026-10-17-c
+#titulo Janela mini minúscula com as 4
+- As 4 instâncias voltam a caber na janela mini no tamanho minúsculo de antes (a partir de 44 dp)
+- O zoom da página na janela mini pode ficar bem menor que no app
+
+#id 2026-10-17-b
+#titulo Janela mini com as 4 instâncias
+- A janela mini agora mostra as 4 instâncias juntas (grade 2x2), para todas continuarem conectadas
+- Tamanho mínimo um pouco maior (84 dp) para as 4 caberem
+
 #id 2026-10-17-a
 #titulo Janela mini bem menor
 - A janela mini agora começa bem pequena e pode ser redimensionada livremente: arraste o cantinho ↘ no canto de baixo

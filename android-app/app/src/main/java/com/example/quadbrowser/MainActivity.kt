@@ -1128,7 +1128,7 @@ class MainActivity : AppCompatActivity() {
         val heightRatio = hostHeight.toFloat() / referenceHeight.toFloat()
         val zoomPercent = (minOf(widthRatio, heightRatio) * 100f)
             .roundToInt()
-            .coerceIn(10, 100)
+            .coerceIn(miniZoomFloor(), 100)
         pane.gridScale = zoomPercent / 100f
         pane.webView.settings.useWideViewPort = true
         pane.webView.settings.loadWithOverviewMode = false
@@ -1914,9 +1914,9 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
 
     // ---- Janela flutuante mini -------------------------------------------
     private var miniWindow: MiniWindowOverlay? = null
-    private var miniPaneIndex = -1
-    private var miniWasFullscreen = false
-    private var miniLayoutListener: View.OnLayoutChangeListener? = null
+    private var miniPaneIndices: List<Int> = emptyList()
+    private var miniFullscreenIndex: Int? = null
+    private val miniLayoutListeners = mutableListOf<Pair<BrowserPane, View.OnLayoutChangeListener>>()
 
     private fun startMiniWindow() {
         if (miniWindow != null) return
@@ -1930,67 +1930,70 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
             }
             return
         }
-        // Mesma regra do PiP: usa a instância que o usuário está vendo.
-        val index = fullscreenPaneIndex
-            ?: if (isPagerMode) paneOrder.getOrNull(instancePager.currentPage)
-            else paneOrder.firstOrNull { panes.getOrNull(it)?.isOpen == true }
-        val pane = index?.let { panes.getOrNull(it) }
-        if (index == null || pane == null || !pane.isOpen) {
+        // As 4 instâncias vão juntas (grade 2x2): se alguma ficasse na tela do app em segundo plano,
+        // o Android a trataria como invisível e o jogo dela desconectaria.
+        val indices = paneOrder.filter { panes.getOrNull(it) != null }
+        if (indices.isEmpty() || panes.none { it.isOpen }) {
             Toast.makeText(this, R.string.mini_window_no_pane, Toast.LENGTH_SHORT).show()
             return
         }
 
         // Tamanho de referência da tela cheia ANTES de mexer em qualquer coisa:
-        // a janela mini usa a mesma proporção, e o zoom do WebView encolhe a página inteira para caber.
+        // cada célula usa a mesma proporção, e o zoom do WebView encolhe a página inteira para caber.
         val (refWidth, refHeight) = thumbnailReferenceSize()
         val aspect = refHeight.toFloat() / refWidth.toFloat()
 
-        miniWasFullscreen = fullscreenPaneIndex == index
-        (pane.container.parent as? ViewGroup)?.removeView(pane.container)
-        if (miniWasFullscreen) {
+        val wasFullscreen = fullscreenPaneIndex
+        indices.forEach { index ->
+            val pane = panes[index]
+            (pane.container.parent as? ViewGroup)?.removeView(pane.container)
+        }
+        if (wasFullscreen != null) {
             fullscreenPaneIndex = null
             applyPaneLayout()
         }
-        val toolbar = (pane.container as? ViewGroup)?.getChildAt(0)
-        toolbar?.visibility = View.GONE
-        pane.container.scaleX = 1f
-        pane.container.scaleY = 1f
-        pane.container.translationX = 0f
-        pane.container.translationY = 0f
-        pane.gridTransformApplied = false
+        indices.forEach { index ->
+            val pane = panes[index]
+            (pane.container as? ViewGroup)?.getChildAt(0)?.visibility = View.GONE
+            pane.container.scaleX = 1f
+            pane.container.scaleY = 1f
+            pane.container.translationX = 0f
+            pane.container.translationY = 0f
+            pane.gridTransformApplied = false
+        }
 
         val overlay = MiniWindowOverlay(
             activity = this,
-            content = pane.container,
+            contents = indices.map { panes[it].container },
             aspect = aspect,
             onOpenApp = { bringAppToFront() },
             onClose = { restoreFromMiniWindow() },
         )
+        miniFullscreenIndex = wasFullscreen
+        miniPaneIndices = indices
         if (!overlay.show()) {
-            toolbar?.visibility = View.VISIBLE
-            pane.thumbnailHost.addView(
-                pane.container,
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-            )
-            if (miniWasFullscreen) fullscreenPaneIndex = index
-            applyPaneLayout()
+            miniFullscreenIndex = wasFullscreen
+            miniWindow = null
+            restorePanesFromMini()
             Toast.makeText(this, R.string.mini_window_failed, Toast.LENGTH_LONG).show()
             return
         }
         miniWindow = overlay
-        miniPaneIndex = index
 
-        val applyZoom = Runnable { applyGridWebViewViewport(pane) }
-        val listener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
-                // Debounce: enquanto arrasta o canto para redimensionar, só reaplica o zoom quando parar.
-                pane.bodyViewportHost.removeCallbacks(applyZoom)
-                pane.bodyViewportHost.postDelayed(applyZoom, 120L)
+        indices.forEach { index ->
+            val pane = panes[index]
+            val applyZoom = Runnable { applyGridWebViewViewport(pane) }
+            val listener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+                if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                    // Debounce: enquanto arrasta o canto para redimensionar, só reaplica o zoom quando parar.
+                    pane.bodyViewportHost.removeCallbacks(applyZoom)
+                    pane.bodyViewportHost.postDelayed(applyZoom, 120L)
+                }
             }
+            miniLayoutListeners += pane to listener
+            pane.bodyViewportHost.addOnLayoutChangeListener(listener)
+            pane.bodyViewportHost.post { applyGridWebViewViewport(pane) }
         }
-        miniLayoutListener = listener
-        pane.bodyViewportHost.addOnLayoutChangeListener(listener)
-        pane.bodyViewportHost.post { applyGridWebViewViewport(pane) }
 
         // O serviço em primeiro plano (iniciado em onPause) mantém o processo vivo com o app em segundo plano.
         moveTaskToBack(true)
@@ -2007,28 +2010,34 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         }
     }
 
-    /** Fecha a janela mini e devolve a instância (mesmo WebView, sem recarregar) para dentro do app. */
+    /** Fecha a janela mini e devolve as instâncias (mesmos WebViews, sem recarregar) para dentro do app. */
     private fun restoreFromMiniWindow() {
         val overlay = miniWindow ?: return
-        val index = miniPaneIndex
         miniWindow = null
-        miniPaneIndex = -1
         overlay.dismiss()
-        val pane = panes.getOrNull(index) ?: return
-        miniLayoutListener?.let { pane.bodyViewportHost.removeOnLayoutChangeListener(it) }
-        miniLayoutListener = null
-        (pane.container as? ViewGroup)?.getChildAt(0)?.visibility = View.VISIBLE
-        pane.gridTransformApplied = false
-        if (pane.container.parent == null) {
-            pane.thumbnailHost.addView(
-                pane.container,
-                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
-            )
+        restorePanesFromMini()
+    }
+
+    private fun restorePanesFromMini() {
+        miniLayoutListeners.forEach { (pane, listener) -> pane.bodyViewportHost.removeOnLayoutChangeListener(listener) }
+        miniLayoutListeners.clear()
+        val indices = miniPaneIndices
+        miniPaneIndices = emptyList()
+        indices.forEach { index ->
+            val pane = panes.getOrNull(index) ?: return@forEach
+            (pane.container as? ViewGroup)?.getChildAt(0)?.visibility = View.VISIBLE
+            pane.gridTransformApplied = false
+            if (pane.container.parent == null) {
+                pane.thumbnailHost.addView(
+                    pane.container,
+                    FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+                )
+            }
         }
-        if (miniWasFullscreen) fullscreenPaneIndex = index
-        miniWasFullscreen = false
+        miniFullscreenIndex?.takeIf { it in panes.indices && panes[it].isOpen }?.let { fullscreenPaneIndex = it }
+        miniFullscreenIndex = null
         applyPaneLayout()
-        pane.thumbnailHost.post {
+        findViewById<View>(R.id.browser_content).post {
             refreshGridPaneThumbnails()
             refreshAutoClickEditors()
         }
@@ -2571,8 +2580,11 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
      * how a 100%+ engine zoom was observed even though the grid asked for a
      * shrink).
      */
+    /** Zoom mínimo: 10% no app; bem menor na janela mini, onde as 4 instâncias ficam minúsculas. */
+    private fun miniZoomFloor(): Int = if (miniWindow != null) 3 else 10
+
     private fun applyForcedWebViewZoom(pane: BrowserPane, targetPercent: Int) {
-        val target = targetPercent.coerceIn(10, 100)
+        val target = targetPercent.coerceIn(miniZoomFloor(), 100)
         pane.webViewZoomPercent = target
         val apply = {
             pane.webView.setInitialScale(target)

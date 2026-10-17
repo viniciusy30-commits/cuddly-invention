@@ -27,7 +27,7 @@ import android.widget.TextView
 @SuppressLint("ClickableViewAccessibility")
 class MiniWindowOverlay(
     private val activity: Activity,
-    private val content: View,
+    private val contents: List<View>,
     private val aspect: Float,
     private val onOpenApp: () -> Unit,
     private val onClose: () -> Unit,
@@ -46,12 +46,32 @@ class MiniWindowOverlay(
 
     fun show(): Boolean {
         if (root != null) return true
-        (content.parent as? ViewGroup)?.removeView(content)
+        contents.forEach { (it.parent as? ViewGroup)?.removeView(it) }
 
+        // Todas as instâncias ficam visíveis juntas (grade 2x2) para que NENHUMA seja
+        // tratada como "em segundo plano" pelo Android e todas continuem conectadas.
+        val grid = LinearLayout(activity).apply { orientation = LinearLayout.VERTICAL }
+        contents.chunked(2).forEach { rowViews ->
+            val row = LinearLayout(activity).apply { orientation = LinearLayout.HORIZONTAL }
+            for (column in 0 until 2) {
+                val view = rowViews.getOrNull(column)
+                val cell = FrameLayout(activity).apply {
+                    clipChildren = true
+                    clipToPadding = true
+                    if (view != null) {
+                        addView(view, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                    }
+                }
+                row.addView(cell, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f).apply {
+                    setMargins(dp(1), dp(1), dp(1), dp(1))
+                })
+            }
+            grid.addView(row, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        }
         val body = FrameLayout(activity).apply {
             clipChildren = true
             clipToPadding = true
-            addView(content, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+            addView(grid, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         }
 
         val grip = FrameLayout(activity).apply {
@@ -174,7 +194,7 @@ class MiniWindowOverlay(
         val added = runCatching { windowManager.addView(frame, layoutParams) }.isSuccess
         if (!added) {
             // Volta o conteúdo para quem chamou resolver (o MainActivity recoloca no lugar).
-            body.removeView(content)
+            contents.forEach { (it.parent as? ViewGroup)?.removeView(it) }
             return false
         }
         root = frame
@@ -189,7 +209,7 @@ class MiniWindowOverlay(
             prefs.edit().putInt("x", p.x).putInt("y", p.y).putInt("wdp", widthDp).apply()
         }
         runCatching { windowManager.removeView(frame) }
-        (content.parent as? ViewGroup)?.removeView(content)
+        contents.forEach { (it.parent as? ViewGroup)?.removeView(it) }
         root = null
         params = null
     }
@@ -211,7 +231,7 @@ class MiniWindowOverlay(
 
     /** Em larguras pequenas só cabe um botão: fica o de tela cheia (voltar ao app) no lugar do X. */
     private fun updateBarForWidth() {
-        val tiny = widthDp < 88
+        val tiny = widthDp < 110
         expandButton?.visibility = View.VISIBLE
         closeButton?.visibility = if (tiny) View.GONE else View.VISIBLE
     }
