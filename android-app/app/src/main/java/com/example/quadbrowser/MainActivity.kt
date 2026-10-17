@@ -1980,9 +1980,12 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         miniWindow = overlay
         miniPaneIndex = index
 
+        val applyZoom = Runnable { applyGridWebViewViewport(pane) }
         val listener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
             if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
-                applyGridWebViewViewport(pane)
+                // Debounce: enquanto arrasta o canto para redimensionar, só reaplica o zoom quando parar.
+                pane.bodyViewportHost.removeCallbacks(applyZoom)
+                pane.bodyViewportHost.postDelayed(applyZoom, 120L)
             }
         }
         miniLayoutListener = listener

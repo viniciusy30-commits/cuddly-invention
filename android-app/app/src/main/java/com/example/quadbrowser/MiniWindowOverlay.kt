@@ -35,13 +35,13 @@ class MiniWindowOverlay(
     private val appContext = activity.applicationContext
     private val windowManager = appContext.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val prefs = appContext.getSharedPreferences("mini_window", Context.MODE_PRIVATE)
-    private val sizesDp = intArrayOf(120, 180, 260)
-    private val sizeLabels = arrayOf("P", "M", "G")
-    private var sizeIndex = prefs.getInt("size", 0).coerceIn(0, sizesDp.size - 1)
+    private val minWidthDp = 44
+    private val maxWidthDp = 300
+    private var widthDp = prefs.getInt("wdp", 76).coerceIn(minWidthDp, maxWidthDp)
     private var root: LinearLayout? = null
     private var params: WindowManager.LayoutParams? = null
-    private var sizeLabel: TextView? = null
-    private val barHeight = dp(26)
+    private var expandButton: ImageButton? = null
+    private val barHeight = dp(22)
 
     fun show(): Boolean {
         if (root != null) return true
@@ -61,28 +61,34 @@ class MiniWindowOverlay(
                         setColor(Color.argb(150, 255, 255, 255))
                     }
                 },
-                FrameLayout.LayoutParams(dp(26), dp(4), Gravity.CENTER),
+                FrameLayout.LayoutParams(dp(14), dp(4), Gravity.CENTER),
             )
         }
 
-        val label = TextView(activity).apply {
-            text = sizeLabels[sizeIndex]
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            gravity = Gravity.CENTER
-            setOnClickListener { cycleSize() }
-        }
-        sizeLabel = label
+        val expand = iconButton(R.drawable.ic_expand) { onOpenApp() }
+        expandButton = expand
 
         val bar = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(Color.argb(245, 16, 24, 38))
             addView(grip, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
-            addView(label, LinearLayout.LayoutParams(dp(28), ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(iconButton(R.drawable.ic_expand) { onOpenApp() }, LinearLayout.LayoutParams(dp(28), ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(iconButton(R.drawable.ic_close) { onClose() }, LinearLayout.LayoutParams(dp(28), ViewGroup.LayoutParams.MATCH_PARENT))
+            addView(expand, LinearLayout.LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT))
+            addView(iconButton(R.drawable.ic_close) { onClose() }, LinearLayout.LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT))
         }
+
+        val handle = TextView(activity).apply {
+            text = "\u2198"
+            setTextColor(Color.WHITE)
+            textSize = 11f
+            gravity = Gravity.CENTER
+            background = GradientDrawable().apply {
+                cornerRadius = dp(6).toFloat()
+                setColor(Color.argb(190, 16, 24, 38))
+            }
+            contentDescription = "Redimensionar"
+        }
+        body.addView(handle, FrameLayout.LayoutParams(dp(20), dp(20), Gravity.BOTTOM or Gravity.END))
 
         val frame = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
@@ -105,8 +111,8 @@ class MiniWindowOverlay(
             WindowManager.LayoutParams.TYPE_PHONE
         }
         val layoutParams = WindowManager.LayoutParams(
-            dp(sizesDp[sizeIndex]),
-            barHeight + bodyHeight(),
+            dp(widthDp),
+            barHeight + bodyHeight(dp(widthDp)),
             windowType,
             // HARDWARE_ACCELERATED é obrigatório: sem ele o WebView não desenha direito numa janela de overlay.
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -115,7 +121,7 @@ class MiniWindowOverlay(
             PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = prefs.getInt("x", metrics.widthPixels - dp(sizesDp[sizeIndex]) - dp(10))
+            x = prefs.getInt("x", metrics.widthPixels - dp(widthDp) - dp(10))
             y = prefs.getInt("y", metrics.heightPixels / 2)
         }
         clampPosition(layoutParams)
@@ -144,6 +150,24 @@ class MiniWindowOverlay(
             }
         }
 
+        var resizeDownX = 0f
+        var resizeStartWidth = 0
+        handle.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    resizeDownX = event.rawX
+                    resizeStartWidth = layoutParams.width
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    applyWidthPx(resizeStartWidth + (event.rawX - resizeDownX).toInt())
+                    true
+                }
+                else -> true
+            }
+        }
+        updateBarForWidth()
+
         val added = runCatching { windowManager.addView(frame, layoutParams) }.isSuccess
         if (!added) {
             // Volta o conteúdo para quem chamou resolver (o MainActivity recoloca no lugar).
@@ -159,7 +183,7 @@ class MiniWindowOverlay(
     fun dismiss() {
         val frame = root ?: return
         params?.let { p ->
-            prefs.edit().putInt("x", p.x).putInt("y", p.y).putInt("size", sizeIndex).apply()
+            prefs.edit().putInt("x", p.x).putInt("y", p.y).putInt("wdp", widthDp).apply()
         }
         runCatching { windowManager.removeView(frame) }
         (content.parent as? ViewGroup)?.removeView(content)
@@ -167,22 +191,30 @@ class MiniWindowOverlay(
         params = null
     }
 
-    private fun cycleSize() {
-        sizeIndex = (sizeIndex + 1) % sizesDp.size
-        sizeLabel?.text = sizeLabels[sizeIndex]
+    /** Redimensiona livremente (arrastando o canto): de bem pequeno até 300 dp de largura. */
+    private fun applyWidthPx(requestedPx: Int) {
         val frame = root ?: return
         val p = params ?: return
-        p.width = dp(sizesDp[sizeIndex])
-        p.height = barHeight + bodyHeight()
-        clampPosition(p)
+        val metrics = appContext.resources.displayMetrics
+        val maxByScreen = (metrics.widthPixels - p.x).coerceAtLeast(dp(minWidthDp))
+        val maxByHeight = (((metrics.heightPixels - p.y - barHeight) / aspect).toInt()).coerceAtLeast(dp(minWidthDp))
+        val widthPx = requestedPx.coerceIn(dp(minWidthDp), minOf(dp(maxWidthDp), maxByScreen, maxByHeight))
+        p.width = widthPx
+        p.height = barHeight + bodyHeight(widthPx)
+        widthDp = (widthPx / appContext.resources.displayMetrics.density).toInt().coerceIn(minWidthDp, maxWidthDp)
         runCatching { windowManager.updateViewLayout(frame, p) }
-        prefs.edit().putInt("size", sizeIndex).apply()
+        updateBarForWidth()
     }
 
-    private fun bodyHeight(): Int {
+    /** Em larguras minúsculas o botão de expandir some para sobrar espaço (o X continua). */
+    private fun updateBarForWidth() {
+        expandButton?.visibility = if (widthDp >= 88) View.VISIBLE else View.GONE
+    }
+
+    private fun bodyHeight(widthPx: Int): Int {
         val metrics = appContext.resources.displayMetrics
-        val raw = (dp(sizesDp[sizeIndex]) * aspect).toInt()
-        return raw.coerceIn(dp(60), (metrics.heightPixels * 0.8f).toInt() - barHeight)
+        val raw = (widthPx * aspect).toInt()
+        return raw.coerceIn(dp(40), (metrics.heightPixels * 0.8f).toInt() - barHeight)
     }
 
     private fun clampPosition(p: WindowManager.LayoutParams) {
