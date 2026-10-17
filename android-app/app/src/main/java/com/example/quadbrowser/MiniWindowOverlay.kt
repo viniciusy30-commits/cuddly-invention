@@ -41,6 +41,7 @@ class MiniWindowOverlay(
     private var root: LinearLayout? = null
     private var params: WindowManager.LayoutParams? = null
     private var expandButton: ImageButton? = null
+    private var closeButton: ImageButton? = null
     private val barHeight = dp(22)
 
     fun show(): Boolean {
@@ -67,6 +68,8 @@ class MiniWindowOverlay(
 
         val expand = iconButton(R.drawable.ic_expand) { onOpenApp() }
         expandButton = expand
+        val close = iconButton(R.drawable.ic_close) { onClose() }
+        closeButton = close
 
         val bar = LinearLayout(activity).apply {
             orientation = LinearLayout.HORIZONTAL
@@ -74,7 +77,7 @@ class MiniWindowOverlay(
             setBackgroundColor(Color.argb(245, 16, 24, 38))
             addView(grip, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1f))
             addView(expand, LinearLayout.LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT))
-            addView(iconButton(R.drawable.ic_close) { onClose() }, LinearLayout.LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT))
+            addView(close, LinearLayout.LayoutParams(dp(22), ViewGroup.LayoutParams.MATCH_PARENT))
         }
 
         val handle = TextView(activity).apply {
@@ -206,9 +209,11 @@ class MiniWindowOverlay(
         updateBarForWidth()
     }
 
-    /** Em larguras minúsculas o botão de expandir some para sobrar espaço (o X continua). */
+    /** Em larguras pequenas só cabe um botão: fica o de tela cheia (voltar ao app) no lugar do X. */
     private fun updateBarForWidth() {
-        expandButton?.visibility = if (widthDp >= 88) View.VISIBLE else View.GONE
+        val tiny = widthDp < 88
+        expandButton?.visibility = View.VISIBLE
+        closeButton?.visibility = if (tiny) View.GONE else View.VISIBLE
     }
 
     private fun bodyHeight(widthPx: Int): Int {

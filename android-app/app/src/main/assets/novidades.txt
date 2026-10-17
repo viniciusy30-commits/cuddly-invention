@@ -1,7 +1,7 @@
 #id 2026-10-17-a
 #titulo Janela mini bem menor
 - A janela mini agora começa bem pequena e pode ser redimensionada livremente: arraste o cantinho ↘ no canto de baixo
-- Tamanho mínimo bem reduzido (o botão de expandir some quando fica minúsculo; o X continua)
+- Tamanho mínimo bem reduzido (quando fica pequena, o botão de tela cheia aparece no lugar do X)
 - O tamanho e a posição ficam salvos para a próxima vez
 
 #id 2026-10-16-c
