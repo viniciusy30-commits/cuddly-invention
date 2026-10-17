@@ -278,6 +278,13 @@ class MainActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.contact_button).setOnClickListener {
             showContactDialog()
         }
+        findViewById<ImageButton>(R.id.mini_window_button).setOnClickListener {
+            startMiniWindow()
+        }
+        findViewById<ImageButton>(R.id.background_button).setOnLongClickListener {
+            startMiniWindow()
+            true
+        }
         findViewById<ImageButton>(R.id.settings_button).setOnClickListener {
             showSettingsDialog()
         }
@@ -1900,9 +1907,129 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         // Mesmo motivo do botão de contato: no modo "uma instância por aba" a barra
         // de cima já está cheia com as bolinhas de troca, então só aparece na grade.
         findViewById<ImageButton>(R.id.settings_button).visibility = if (showingGrid) View.VISIBLE else View.GONE
+        findViewById<ImageButton>(R.id.mini_window_button).visibility = if (showingGrid) View.VISIBLE else View.GONE
     }
 
     private var startupChecksDone = false
+
+    // ---- Janela flutuante mini -------------------------------------------
+    private var miniWindow: MiniWindowOverlay? = null
+    private var miniPaneIndex = -1
+    private var miniWasFullscreen = false
+    private var miniLayoutListener: View.OnLayoutChangeListener? = null
+
+    private fun startMiniWindow() {
+        if (miniWindow != null) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !android.provider.Settings.canDrawOverlays(this)) {
+            Toast.makeText(this, R.string.mini_window_permission, Toast.LENGTH_LONG).show()
+            try {
+                startActivity(
+                    Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")),
+                )
+            } catch (_: Exception) {
+            }
+            return
+        }
+        // Mesma regra do PiP: usa a instância que o usuário está vendo.
+        val index = fullscreenPaneIndex
+            ?: if (isPagerMode) paneOrder.getOrNull(instancePager.currentPage)
+            else paneOrder.firstOrNull { panes.getOrNull(it)?.isOpen == true }
+        val pane = index?.let { panes.getOrNull(it) }
+        if (index == null || pane == null || !pane.isOpen) {
+            Toast.makeText(this, R.string.mini_window_no_pane, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Tamanho de referência da tela cheia ANTES de mexer em qualquer coisa:
+        // a janela mini usa a mesma proporção, e o zoom do WebView encolhe a página inteira para caber.
+        val (refWidth, refHeight) = thumbnailReferenceSize()
+        val aspect = refHeight.toFloat() / refWidth.toFloat()
+
+        miniWasFullscreen = fullscreenPaneIndex == index
+        (pane.container.parent as? ViewGroup)?.removeView(pane.container)
+        if (miniWasFullscreen) {
+            fullscreenPaneIndex = null
+            applyPaneLayout()
+        }
+        val toolbar = (pane.container as? ViewGroup)?.getChildAt(0)
+        toolbar?.visibility = View.GONE
+        pane.container.scaleX = 1f
+        pane.container.scaleY = 1f
+        pane.container.translationX = 0f
+        pane.container.translationY = 0f
+        pane.gridTransformApplied = false
+
+        val overlay = MiniWindowOverlay(
+            activity = this,
+            content = pane.container,
+            aspect = aspect,
+            onOpenApp = { bringAppToFront() },
+            onClose = { restoreFromMiniWindow() },
+        )
+        if (!overlay.show()) {
+            toolbar?.visibility = View.VISIBLE
+            pane.thumbnailHost.addView(
+                pane.container,
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
+            if (miniWasFullscreen) fullscreenPaneIndex = index
+            applyPaneLayout()
+            Toast.makeText(this, R.string.mini_window_failed, Toast.LENGTH_LONG).show()
+            return
+        }
+        miniWindow = overlay
+        miniPaneIndex = index
+
+        val listener = View.OnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                applyGridWebViewViewport(pane)
+            }
+        }
+        miniLayoutListener = listener
+        pane.bodyViewportHost.addOnLayoutChangeListener(listener)
+        pane.bodyViewportHost.post { applyGridWebViewViewport(pane) }
+
+        // O serviço em primeiro plano (iniciado em onPause) mantém o processo vivo com o app em segundo plano.
+        moveTaskToBack(true)
+    }
+
+    private fun bringAppToFront() {
+        val intent = Intent(this, MainActivity::class.java).addFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_SINGLE_TOP,
+        )
+        try {
+            startActivity(intent)
+        } catch (error: Exception) {
+            Log.w("QuadBrowser", "Unable to bring app to front", error)
+        }
+    }
+
+    /** Fecha a janela mini e devolve a instância (mesmo WebView, sem recarregar) para dentro do app. */
+    private fun restoreFromMiniWindow() {
+        val overlay = miniWindow ?: return
+        val index = miniPaneIndex
+        miniWindow = null
+        miniPaneIndex = -1
+        overlay.dismiss()
+        val pane = panes.getOrNull(index) ?: return
+        miniLayoutListener?.let { pane.bodyViewportHost.removeOnLayoutChangeListener(it) }
+        miniLayoutListener = null
+        (pane.container as? ViewGroup)?.getChildAt(0)?.visibility = View.VISIBLE
+        pane.gridTransformApplied = false
+        if (pane.container.parent == null) {
+            pane.thumbnailHost.addView(
+                pane.container,
+                FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
+            )
+        }
+        if (miniWasFullscreen) fullscreenPaneIndex = index
+        miniWasFullscreen = false
+        applyPaneLayout()
+        pane.thumbnailHost.post {
+            refreshGridPaneThumbnails()
+            refreshAutoClickEditors()
+        }
+    }
 
     private fun showSettingsDialog() {
         val labels = arrayOf(
@@ -2591,6 +2718,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     override fun onStart() {
         super.onStart()
         isActivityVisible = true
+        if (miniWindow != null) restoreFromMiniWindow()
         if (!panes.any { it.isAutoClicking }) {
             stopService(Intent(this, AutoClickForegroundService::class.java))
         }
@@ -2676,6 +2804,8 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         accessListenerRegistration?.remove()
         contactListenerRegistration?.remove()
         accessCountdownHandler.removeCallbacks(accessCountdownRunnable)
+        miniWindow?.dismiss()
+        miniWindow = null
         persistAllPaneState()
         if (!isChangingConfigurations) panes.forEach { it.webView.stopLoading(); it.webView.destroy() }
         panes.clear()

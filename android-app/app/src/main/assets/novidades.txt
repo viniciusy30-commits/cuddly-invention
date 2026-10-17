@@ -1,3 +1,10 @@
+#id 2026-10-16-c
+#titulo Janela flutuante mini
+- Novo botão (janelinha estreita) ao lado do PiP: abre a instância numa janela pequena e arrastável por cima de qualquer app
+- A mesma sessão continua rodando, sem reconectar o jogo
+- Na janela: arraste pela barra, toque em P/M/G para trocar o tamanho, use o ícone de expandir para voltar ao app
+- Dica: segurar o botão de PiP também abre a janela mini (útil no modo por abas)
+
 #id 2026-10-16-b
 #titulo Botão de PiP reposicionado
 - O botão de janela flutuante (PiP) agora fica logo depois do botão de contato

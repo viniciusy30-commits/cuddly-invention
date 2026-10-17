@@ -171,4 +171,8 @@
     <string name="update_permission_open">Abrir configurações</string>
     <string name="whats_new_title">O que mudou</string>
     <string name="whats_new_ok">Entendi</string>
+    <string name="mini_window_button_description">Janela flutuante mini</string>
+    <string name="mini_window_permission">Permita \"Sobrepor a outros apps\" para o Multi Account e toque no botão de novo.</string>
+    <string name="mini_window_no_pane">Abra uma instância para usar a janela mini.</string>
+    <string name="mini_window_failed">Não foi possível abrir a janela mini.</string>
 </resources>

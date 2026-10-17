@@ -60,6 +60,14 @@
             android:src="@drawable/ic_minimize" />
 
         <ImageButton
+            android:id="@+id/mini_window_button"
+            style="@style/ThemeButton"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:contentDescription="@string/mini_window_button_description"
+            android:src="@drawable/ic_mini_window" />
+
+        <ImageButton
             android:id="@+id/settings_button"
             style="@style/ThemeButton"
             android:layout_marginStart="2dp"
