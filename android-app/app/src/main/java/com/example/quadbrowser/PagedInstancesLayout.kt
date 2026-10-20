@@ -65,8 +65,16 @@ package com.example.quadbrowser
             val pageWidth = measuredWidth
             val pageHeight = measuredHeight
             for (index in 0 until childCount) {
-                val pageLeft = ((index - currentPage) * pageWidth + pageOffset).roundToInt()
+                val pageLeft = (index - currentPage) * pageWidth // pageOffset is applied via translationX
                 getChildAt(index).layout(pageLeft, 0, pageLeft + pageWidth, pageHeight)
+            }
+            applyPageOffset()
+        }
+
+        /** Moves the pages with a cheap translation instead of a full layout pass per frame. */
+        private fun applyPageOffset() {
+            for (index in 0 until childCount) {
+                getChildAt(index).translationX = pageOffset
             }
         }
 
@@ -77,7 +85,7 @@ package com.example.quadbrowser
          */
         fun previewDragOffset(offsetPx: Float) {
             pageOffset = offsetPx.coerceIn(-width.toFloat(), width.toFloat())
-            requestLayout()
+            applyPageOffset()
         }
 
         /** Called when the toolbar drag ends, to settle on the nearest page. */
@@ -97,7 +105,7 @@ package com.example.quadbrowser
                 duration = 180L
                 addUpdateListener {
                     pageOffset = it.animatedValue as Float
-                    requestLayout()
+                    applyPageOffset()
                 }
                 addListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {

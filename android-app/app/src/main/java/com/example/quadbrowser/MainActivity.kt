@@ -72,10 +72,10 @@ class MainActivity : AppCompatActivity() {
             // active. Avoid waking the main thread and touching all four renderers
             // every keep-alive tick during normal foreground use.
             if (activity.isActivityVisible) return
-            activity.panes
-                .asSequence()
-                .filter { it.isOpen }
-                .forEach { it.webView.resumeTimers() }
+            // resumeTimers() is process-wide (it covers every WebView of the
+            // app), so one call is enough; calling it once per pane only
+            // repeated the same work.
+            if (activity.panes.any { it.isOpen }) activity.panes.first().webView.resumeTimers()
         }
 
         const val FULLSCREEN_PANE_KEY = "fullscreen_pane_index"
@@ -97,6 +97,10 @@ class MainActivity : AppCompatActivity() {
         const val GOOGLE_ACCOUNT_PERMISSION_REQUEST = 2302
         const val NOTIFICATION_PERMISSION_REQUEST = 4101
         const val MOBILE_VIEWPORT_WIDTH = 390
+        // Phones with 90/120 Hz screens make four live WebViews render and
+        // run requestAnimationFrame up to twice as often. 60 Hz is smooth
+        // enough and is the biggest single source of heat/battery drain.
+        const val MAX_REFRESH_RATE_HZ = 60f
     }
 
     private data class ClickPoint(var x: Float, var y: Float, var intervalMs: Long = 1000L)
@@ -146,6 +150,7 @@ class MainActivity : AppCompatActivity() {
         // surface, then projected into the current grid/PiP WebView bounds.
         var autoClickReferenceWidth: Float = 0f,
         var autoClickReferenceHeight: Float = 0f,
+        var zoomApplyRunnable: Runnable? = null,
     )
 
     private val panes = mutableListOf<BrowserPane>()
@@ -204,9 +209,16 @@ class MainActivity : AppCompatActivity() {
     private val accessCountdownRunnable = object : Runnable {
         override fun run() {
             updateAccessTimeRemainingLabel()
-            // Tick every second so an expiry is caught (and the app is
-            // blocked) right when the plan time runs out, not up to 30s late.
-            accessCountdownHandler.postDelayed(this, 1_000L)
+            // Tick every second only during the last minute (the label shows
+            // seconds and blinks there), so an expiry is still caught within
+            // one second. Before that the label changes once per minute, so
+            // waking the main thread every second was wasted work. Also stop
+            // ticking once access has expired/been revoked.
+            val remainingMs = (accessExpiresAtMillis ?: return) - System.currentTimeMillis()
+            if (remainingMs <= 0L) return
+            val delayMs = if (remainingMs <= 60_000L) 1_000L
+            else (remainingMs % 60_000L + 50L).coerceIn(1_000L, 60_000L)
+            accessCountdownHandler.postDelayed(this, delayMs)
         }
     }
 
@@ -216,6 +228,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         activityRef = java.lang.ref.WeakReference(this)
         setContentView(R.layout.activity_main)
+        capRefreshRate()
         accessTimeRemainingLabel = findViewById(R.id.access_time_remaining)
         beginAccessGate()
         requestNotificationPermissionIfNeeded()
@@ -1026,20 +1039,32 @@ class MainActivity : AppCompatActivity() {
         instancePager.post { refreshPagerPaneThumbnails() }
     }
 
+    /** Asks the system to run this window at most at [MAX_REFRESH_RATE_HZ]. */
+    private fun capRefreshRate() {
+        val attrs = window.attributes
+        if (attrs.preferredRefreshRate == MAX_REFRESH_RATE_HZ) return
+        attrs.preferredRefreshRate = MAX_REFRESH_RATE_HZ
+        window.attributes = attrs
+    }
+
     private fun restoreDefaultPageViewport(view: WebView) {
         val script = """
             (function() {
                 var mobileWidth = $MOBILE_VIEWPORT_WIDTH;
+                var desired = 'width=' + mobileWidth + ', initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+                var changed = false;
                 var meta = document.querySelector('meta[name="viewport"]');
                 if (!meta) {
                     meta = document.createElement('meta');
                     meta.name = 'viewport';
-                    document.head.appendChild(meta);
+                    if (document.head) document.head.appendChild(meta);
                 }
-                meta.setAttribute('content', 'width=' + mobileWidth + ', initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
-                document.documentElement.style.minWidth = '';
-                if (document.body) document.body.style.minWidth = '';
-                window.dispatchEvent(new Event('resize'));
+                // Only touch the page (and fire 'resize', which makes heavy
+                // sites re-layout and redraw) when something really differs.
+                if (meta.getAttribute('content') !== desired) { meta.setAttribute('content', desired); changed = true; }
+                if (document.documentElement.style.minWidth) { document.documentElement.style.minWidth = ''; changed = true; }
+                if (document.body && document.body.style.minWidth) { document.body.style.minWidth = ''; changed = true; }
+                if (changed) window.dispatchEvent(new Event('resize'));
             })();
         """.trimIndent()
         view.evaluateJavascript(script, null)
@@ -2150,6 +2175,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     private fun appendDebugLog(message: String) {
         val timestamp = java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
         debugLogMessages.add("[$timestamp] $message")
+        if (debugLogMessages.size > 200) debugLogMessages.removeAt(0)
 
         if (debugLogPanel == null) {
             val root = findViewById<FrameLayout>(android.R.id.content)
@@ -2316,7 +2342,10 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         } else {
             stopAccessCountdownBlink()
             accessTimeRemainingLabel.setTextColor(getColor(R.color.text_secondary))
-            accessTimeRemainingLabel.text = "Acesso válido por mais " + formatTimeRemaining(remainingMs)
+            val remainingText = "Acesso válido por mais " + formatTimeRemaining(remainingMs)
+            if (accessTimeRemainingLabel.text.toString() != remainingText) {
+                accessTimeRemainingLabel.text = remainingText
+            }
         }
     }
 
@@ -2586,12 +2615,18 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     private fun applyForcedWebViewZoom(pane: BrowserPane, targetPercent: Int) {
         val target = targetPercent.coerceIn(miniZoomFloor(), 100)
         pane.webViewZoomPercent = target
-        val apply = {
-            pane.webView.setInitialScale(target)
-            pane.webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
+        // Cancel a still-pending application for this pane: only the latest
+        // target matters, so bursts of layout passes no longer queue up
+        // repeated zoom + resize work in the page.
+        pane.zoomApplyRunnable?.let { pane.webView.removeCallbacks(it) }
+        val webView = pane.webView
+        val apply = Runnable {
+            webView.setInitialScale(target)
+            webView.evaluateJavascript("window.dispatchEvent(new Event(\"resize\"));", null)
         }
-        pane.webView.post(apply)
-        pane.webView.postDelayed(apply, 300L)
+        pane.zoomApplyRunnable = apply
+        webView.post(apply)
+        webView.postDelayed(apply, 300L)
     }
 
     private fun configureWebView(webView: WebView, profileName: String, paneIndex: Int) {
@@ -2742,6 +2777,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
     override fun onResume() {
           super.onResume()
           isActivityVisible = true
+          capRefreshRate()
           if (!panes.any { it.isAutoClicking }) {
               stopService(Intent(this, AutoClickForegroundService::class.java))
           }
@@ -2767,7 +2803,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         // foreground service + notification is to keep these instances
         // genuinely running (not just alive-but-frozen), this is disabled
         // per-WebView rather than relying on the global default.
-        panes.forEach { it.webView.resumeTimers() }
+        panes.firstOrNull()?.webView?.resumeTimers()
         super.onPause()
     }
 
@@ -2780,7 +2816,7 @@ row.addView(compactAction("P", R.string.auto_clicker_presets) { showPresetDialog
         isActivityVisible = false
         persistAllPaneState()
         if (!isChangingConfigurations && !isFinishing) startBackgroundServiceForCurrentState()
-        panes.forEach { it.webView.resumeTimers() }
+        panes.firstOrNull()?.webView?.resumeTimers()
         super.onStop()
     }
 
