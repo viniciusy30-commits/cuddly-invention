@@ -15,13 +15,13 @@ jobs:
 
       - name: Validate Apple signing secrets
         env:
-          IOS_APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_BASE64 }}
+          IOS_APP_STORE_CONNECT_KEY_P8: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_P8 }}
           IOS_APP_STORE_CONNECT_KEY_ID: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_ID }}
           IOS_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.IOS_APP_STORE_CONNECT_ISSUER_ID }}
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
           missing=0
-          for name in IOS_APP_STORE_CONNECT_KEY_BASE64 IOS_APP_STORE_CONNECT_KEY_ID IOS_APP_STORE_CONNECT_ISSUER_ID IOS_TEAM_ID; do
+          for name in IOS_APP_STORE_CONNECT_KEY_P8 IOS_APP_STORE_CONNECT_KEY_ID IOS_APP_STORE_CONNECT_ISSUER_ID IOS_TEAM_ID; do
             if [ -z "${!name}" ]; then
               echo "::error::Missing GitHub Actions secret: $name"
               missing=1
@@ -34,13 +34,13 @@ jobs:
 
       - name: Prepare App Store Connect API key
         env:
-          IOS_APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_BASE64 }}
+          IOS_APP_STORE_CONNECT_KEY_P8: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_P8 }}
           IOS_APP_STORE_CONNECT_KEY_ID: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_ID }}
           IOS_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.IOS_APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
           KEY_PATH="$RUNNER_TEMP/AuthKey_$IOS_APP_STORE_CONNECT_KEY_ID.p8"
-          printf '%s' "$IOS_APP_STORE_CONNECT_KEY_BASE64" | base64 --decode > "$KEY_PATH"
+          printf '%s\n' "$IOS_APP_STORE_CONNECT_KEY_P8" > "$KEY_PATH"
           chmod 600 "$KEY_PATH"
           echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
           echo "ASC_KEY_ID=$IOS_APP_STORE_CONNECT_KEY_ID" >> "$GITHUB_ENV"
