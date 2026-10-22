@@ -19,7 +19,7 @@
 <div class="foot">O jogo é carregado diretamente de pokeidle.io. Esta página não pede nem armazena sua senha.<br>Para instalar no iPhone: abra no Safari → Compartilhar → Adicionar à Tela de Início.</div>
 </main><script>
 (() => {
- const GAME='https://pokeidle.io/'; const grid=document.getElementById('grid'); const panels=[];
+ const GAME='https://pokeidle.io/app'; const grid=document.getElementById('grid'); const panels=[];
  for(let i=0;i<4;i++){
   const card=document.createElement('article');card.className='card';card.innerHTML='<div class="card-head"><span class="dot"></span><span class="account">Painel '+(i+1)+'</span><span class="state">Pokéidle</span><div class="card-actions"><button data-action="reload" aria-label="Recarregar painel '+(i+1)+'">↻</button><button data-action="open">Abrir fora ↗</button><button data-action="expand" aria-label="Expandir painel '+(i+1)+'">⤢</button></div></div><div class="frame-wrap"><iframe title="Pokéidle painel '+(i+1)+'" loading="'+(i===0?'eager':'lazy')+'" referrerpolicy="strict-origin-when-cross-origin" src="'+GAME+'"></iframe><div class="fallback"><div>Se o jogo não aparecer aqui, ele pode bloquear incorporação no navegador.<br><a href="'+GAME+'" target="_blank" rel="noopener">Abrir Pokéidle em outra aba ↗</a></div></div></div>';
   const frame=card.querySelector('iframe');const state=card.querySelector('.state');let timer=setTimeout(()=>{card.querySelector('.fallback').classList.add('show');state.textContent='Se não abriu, tente fora';},10000);
