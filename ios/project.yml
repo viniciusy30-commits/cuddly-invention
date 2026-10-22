@@ -1,0 +1,22 @@
+name: QuadPokeidle
+options:
+  bundleIdPrefix: com.vini
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: 5.9
+    TARGETED_DEVICE_FAMILY: "1"
+    INFOPLIST_KEY_CFBundleDisplayName: "Quad Pokeidle"
+    INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    GENERATE_INFOPLIST_FILE: YES
+targets:
+  QuadPokeidle:
+    type: application
+    platform: iOS
+    sources:
+      - path: QuadPokeidle
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vini.QuadPokeidle
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"

@@ -1,0 +1,44 @@
+name: Build iOS app (unsigned simulator)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/ios-pokeidle-four-accounts
+    paths:
+      - "ios-app/**"
+      - ".github/workflows/ios-simulator.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild \
+            -project ios-app/QuadBrowserIOS.xcodeproj \
+            -scheme QuadBrowserIOS \
+            -sdk iphonesimulator \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator app for testing
+        run: |
+          cd build/DerivedData/Build/Products/Release-iphonesimulator
+          /usr/bin/zip -r "$GITHUB_WORKSPACE/CuddlyInvention-iOS-Simulator.zip" QuadBrowserIOS.app
+
+      - name: Upload simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: CuddlyInvention-iOS-Simulator
+          path: CuddlyInvention-iOS-Simulator.zip
+          if-no-files-found: error
+          retention-days: 7
