@@ -4,14 +4,14 @@
 	classes = {};
 	objectVersion = 56;
 	objects = {
-		A10000000000000000000001 /* QuadBrowserIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* QuadBrowserIOSApp.swift */; };
-		A10000000000000000000002 /* BrowserHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* BrowserHomeView.swift */; };
+		A10000000000000000000001 /* QuadBrowserIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* QuadBrowserIOSApp.swift */; };
+		A10000000000000000000002 /* BrowserHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* BrowserHomeView.swift */; };
 		A10000000000000000000013 /* QuadBrowserIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuadBrowserIOSApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* BrowserHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHomeView.swift; sourceTree = "<group>"; };
 		A10000000000000000000015 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A10000000000000000000016 /* QuadBrowserIOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QuadBrowserIOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000020 /* Sources */ = {isa = PBXGroup; children = (A10000000000000000000013, A10000000000000000000014, ); path = App; sourceTree = "<group>"; };
-		A10000000000000000000021 /* QuadBrowserIOS */ = {isa = PBXGroup; children = (A10000000000000000000020, A10000000000000000000015, A10000000000000000000016, ); path = QuadBrowserIOS; sourceTree = "<group>"; };
+		A10000000000000000000021 /* QuadBrowserIOS */ = {isa = PBXGroup; children = (A10000000000000000000020, A10000000000000000000015, ); path = QuadBrowserIOS; sourceTree = "<group>"; };
 		A10000000000000000000022 /* ios-app */ = {isa = PBXGroup; children = (A10000000000000000000021, ); path = ios-app; sourceTree = "<group>"; };
 		A10000000000000000000023 /* Products */ = {isa = PBXGroup; children = (A10000000000000000000016, ); name = Products; sourceTree = "<group>"; };
 		A10000000000000000000024 = {isa = PBXGroup; children = (A10000000000000000000022, A10000000000000000000023, ); sourceTree = "<group>"; };
