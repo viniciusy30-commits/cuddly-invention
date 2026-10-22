@@ -69,9 +69,6 @@ struct BrowserHomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.white.opacity(0.10), lineWidth: 1))
         .contentShape(Rectangle())
-        .onTapGesture {
-            expandedAccount = account
-        }
     }
 
     private func accountPane(_ account: Int) -> some View {
