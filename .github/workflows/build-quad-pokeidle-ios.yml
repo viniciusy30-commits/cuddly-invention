@@ -45,6 +45,22 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             build
 
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p ios/build/ipa/Payload
+          cp -R ios/build/DeviceDerivedData/Build/Products/Release-iphoneos/QuadPokeidle.app ios/build/ipa/Payload/
+          cd ios/build/ipa
+          /usr/bin/zip -qry QuadPokeidle-unsigned.ipa Payload
+          test -s QuadPokeidle-unsigned.ipa
+
+      - name: Upload unsigned IPA for signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuadPokeidle-iOS-unsigned-IPA
+          path: ios/build/ipa/QuadPokeidle-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 7
+
   build-simulator:
     runs-on: macos-15
     steps:
