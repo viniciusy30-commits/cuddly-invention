@@ -13,56 +13,40 @@ jobs:
       - name: Check out source
         uses: actions/checkout@v4
 
-      - name: Validate signing secrets
+      - name: Validate Apple signing secrets
         env:
-          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_BASE64 }}
+          IOS_APP_STORE_CONNECT_KEY_ID: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_ID }}
+          IOS_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.IOS_APP_STORE_CONNECT_ISSUER_ID }}
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
           missing=0
-          for name in IOS_CERTIFICATE_BASE64 IOS_CERTIFICATE_PASSWORD IOS_PROVISIONING_PROFILE_BASE64 IOS_TEAM_ID; do
+          for name in IOS_APP_STORE_CONNECT_KEY_BASE64 IOS_APP_STORE_CONNECT_KEY_ID IOS_APP_STORE_CONNECT_ISSUER_ID IOS_TEAM_ID; do
             if [ -z "${!name}" ]; then
               echo "::error::Missing GitHub Actions secret: $name"
               missing=1
             fi
           done
           if [ "$missing" -ne 0 ]; then
-            echo "Read ios-app/IOS_SIGNING_GUIDE.md and add the required repository secrets before rerunning."
+            echo "Follow ios-app/IOS_SIGNING_GUIDE.md to configure Apple API-key secrets."
             exit 1
           fi
 
-      - name: Install signing certificate and provisioning profile
+      - name: Prepare App Store Connect API key
         env:
-          IOS_CERTIFICATE_BASE64: ${{ secrets.IOS_CERTIFICATE_BASE64 }}
-          IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
-          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          IOS_APP_STORE_CONNECT_KEY_BASE64: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_BASE64 }}
+          IOS_APP_STORE_CONNECT_KEY_ID: ${{ secrets.IOS_APP_STORE_CONNECT_KEY_ID }}
+          IOS_APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.IOS_APP_STORE_CONNECT_ISSUER_ID }}
         run: |
           set -euo pipefail
-          CERT_PATH="$RUNNER_TEMP/distribution.p12"
-          PROFILE_PATH="$RUNNER_TEMP/profile.mobileprovision"
-          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
+          KEY_PATH="$RUNNER_TEMP/AuthKey_$IOS_APP_STORE_CONNECT_KEY_ID.p8"
+          printf '%s' "$IOS_APP_STORE_CONNECT_KEY_BASE64" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "ASC_KEY_ID=$IOS_APP_STORE_CONNECT_KEY_ID" >> "$GITHUB_ENV"
+          echo "ASC_ISSUER_ID=$IOS_APP_STORE_CONNECT_ISSUER_ID" >> "$GITHUB_ENV"
 
-          printf '%s' "$IOS_CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
-          printf '%s' "$IOS_PROVISIONING_PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
-          security cms -D -i "$PROFILE_PATH" > "$PROFILE_PLIST"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' "$PROFILE_PLIST")
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
-          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
-
-      - name: Archive for physical iPhone
+      - name: Archive app for physical iPhone
         env:
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
@@ -74,14 +58,17 @@ jobs:
             -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/QuadBrowserIOS.xcarchive" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -allowProvisioningUpdates \
             DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
             PRODUCT_BUNDLE_IDENTIFIER=com.viniciusy30.quadbrowser.ios \
-            CODE_SIGN_STYLE=Manual \
-            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            CODE_SIGN_STYLE=Automatic \
             CODE_SIGNING_ALLOWED=YES \
             archive
 
-      - name: Export signed IPA
+      - name: Export signed IPA for App Store Connect
         env:
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
         run: |
@@ -93,12 +80,8 @@ jobs:
           <dict>
             <key>destination</key><string>export</string>
             <key>method</key><string>app-store-connect</string>
-            <key>signingStyle</key><string>manual</string>
+            <key>signingStyle</key><string>automatic</string>
             <key>teamID</key><string>$IOS_TEAM_ID</string>
-            <key>provisioningProfiles</key>
-            <dict>
-              <key>com.viniciusy30.quadbrowser.ios</key><string>$PROFILE_UUID</string>
-            </dict>
           </dict>
           </plist>
           PLIST
@@ -106,10 +89,15 @@ jobs:
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/QuadBrowserIOS.xcarchive" \
             -exportPath "$RUNNER_TEMP/ipa-export" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -allowProvisioningUpdates
 
-          test -f "$RUNNER_TEMP/ipa-export/QuadBrowserIOS.ipa"
-          cp "$RUNNER_TEMP/ipa-export/QuadBrowserIOS.ipa" "$GITHUB_WORKSPACE/CuddlyInvention-iOS.ipa"
+          IPA_PATH="$(find "$RUNNER_TEMP/ipa-export" -maxdepth 1 -name '*.ipa' -print -quit)"
+          test -n "$IPA_PATH"
+          cp "$IPA_PATH" "$GITHUB_WORKSPACE/CuddlyInvention-iOS.ipa"
 
       - name: Upload signed IPA
         uses: actions/upload-artifact@v4
