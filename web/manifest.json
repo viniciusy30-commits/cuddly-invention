@@ -1,0 +1,12 @@
+{
+  "name": "Quad Pokeidle",
+  "short_name": "Quad Pokeidle",
+  "description": "Atalho web gratuito para abrir o Pokéidle em até quatro painéis.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080d19",
+  "theme_color": "#0b1020",
+  "icons": [{"src":"./icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any maskable"}]
+}
