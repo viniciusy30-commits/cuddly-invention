@@ -16,7 +16,7 @@ Se a sua conta não permitir criar uma chave ou gerar certificados/perfis, o tit
 
 No repositório, acesse **Settings → Secrets and variables → Actions → New repository secret** e crie:
 
-- `IOS_APP_STORE_CONNECT_KEY_BASE64`: o arquivo `.p8` codificado em Base64, sem quebras de linha.
+- `IOS_APP_STORE_CONNECT_KEY_P8`: conteúdo completo do arquivo `.p8`, incluindo as linhas `-----BEGIN PRIVATE KEY-----` e `-----END PRIVATE KEY-----`.
 - `IOS_APP_STORE_CONNECT_KEY_ID`: o Key ID da chave.
 - `IOS_APP_STORE_CONNECT_ISSUER_ID`: o Issuer ID exibido pela Apple.
 - `IOS_TEAM_ID`: Team ID da sua equipe Apple Developer.
