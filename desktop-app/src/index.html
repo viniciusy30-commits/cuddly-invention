@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:;">
+  <title>Quad Browser</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-mark">Q</div>
+    <div class="brand-copy"><strong>Quad Browser</strong><span>Quatro espaços. Sessões independentes.</span></div>
+    <div class="header-spacer"></div>
+    <button id="layout-toggle" class="secondary-button" title="Alternar visualização">▦ <span>Grade 2 × 2</span></button>
+  </header>
+  <main id="workspace" class="workspace">
+    <section class="pane" data-pane="0">
+      <div class="pane-toolbar">
+        <span class="pane-number">01</span>
+        <button class="icon-button" data-action="back" aria-label="Voltar" title="Voltar">‹</button>
+        <button class="icon-button" data-action="forward" aria-label="Avançar" title="Avançar">›</button>
+        <button class="icon-button" data-action="reload" aria-label="Recarregar" title="Recarregar">↻</button>
+        <form class="address-form"><input class="address" aria-label="Endereço do navegador 1" value="https://www.google.com" spellcheck="false"><button class="go-button" type="submit">Ir</button></form>
+        <button class="icon-button expand-button" data-action="expand" aria-label="Ampliar" title="Ampliar">⛶</button>
+      </div>
+      <div class="viewport" aria-label="Conteúdo do navegador 1"><div class="loading-note">Preparando navegador…</div></div>
+      <div class="pane-status"><span class="status-dot"></span><span class="status-text">Pronto</span><span class="pane-title">Google</span></div>
+    </section>
+    <section class="pane" data-pane="1">
+      <div class="pane-toolbar">
+        <span class="pane-number">02</span>
+        <button class="icon-button" data-action="back" aria-label="Voltar" title="Voltar">‹</button>
+        <button class="icon-button" data-action="forward" aria-label="Avançar" title="Avançar">›</button>
+        <button class="icon-button" data-action="reload" aria-label="Recarregar" title="Recarregar">↻</button>
+        <form class="address-form"><input class="address" aria-label="Endereço do navegador 2" value="https://www.google.com" spellcheck="false"><button class="go-button" type="submit">Ir</button></form>
+        <button class="icon-button expand-button" data-action="expand" aria-label="Ampliar" title="Ampliar">⛶</button>
+      </div>
+      <div class="viewport" aria-label="Conteúdo do navegador 2"><div class="loading-note">Preparando navegador…</div></div>
+      <div class="pane-status"><span class="status-dot"></span><span class="status-text">Pronto</span><span class="pane-title">Google</span></div>
+    </section>
+    <section class="pane" data-pane="2">
+      <div class="pane-toolbar">
+        <span class="pane-number">03</span>
+        <button class="icon-button" data-action="back" aria-label="Voltar" title="Voltar">‹</button>
+        <button class="icon-button" data-action="forward" aria-label="Avançar" title="Avançar">›</button>
+        <button class="icon-button" data-action="reload" aria-label="Recarregar" title="Recarregar">↻</button>
+        <form class="address-form"><input class="address" aria-label="Endereço do navegador 3" value="https://www.google.com" spellcheck="false"><button class="go-button" type="submit">Ir</button></form>
+        <button class="icon-button expand-button" data-action="expand" aria-label="Ampliar" title="Ampliar">⛶</button>
+      </div>
+      <div class="viewport" aria-label="Conteúdo do navegador 3"><div class="loading-note">Preparando navegador…</div></div>
+      <div class="pane-status"><span class="status-dot"></span><span class="status-text">Pronto</span><span class="pane-title">Google</span></div>
+    </section>
+    <section class="pane" data-pane="3">
+      <div class="pane-toolbar">
+        <span class="pane-number">04</span>
+        <button class="icon-button" data-action="back" aria-label="Voltar" title="Voltar">‹</button>
+        <button class="icon-button" data-action="forward" aria-label="Avançar" title="Avançar">›</button>
+        <button class="icon-button" data-action="reload" aria-label="Recarregar" title="Recarregar">↻</button>
+        <form class="address-form"><input class="address" aria-label="Endereço do navegador 4" value="https://www.google.com" spellcheck="false"><button class="go-button" type="submit">Ir</button></form>
+        <button class="icon-button expand-button" data-action="expand" aria-label="Ampliar" title="Ampliar">⛶</button>
+      </div>
+      <div class="viewport" aria-label="Conteúdo do navegador 4"><div class="loading-note">Preparando navegador…</div></div>
+      <div class="pane-status"><span class="status-dot"></span><span class="status-text">Pronto</span><span class="pane-title">Google</span></div>
+    </section>
+  </main>
+  <footer class="app-footer"><span><span class="footer-dot"></span> Navegadores isolados</span><span>Cookies e logins separados por espaço</span><span class="footer-right">Quad Browser Desktop</span></footer>
+  <script src="renderer.js"></script>
+</body>
+</html>
