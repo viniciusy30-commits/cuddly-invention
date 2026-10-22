@@ -1,24 +1,30 @@
 # Assinatura do app iOS (sem Mac próprio)
 
-O workflow `.github/workflows/ios-device-ipa.yml` compila o app para iPhone e exporta um IPA assinado. Ele não consegue assinar sozinho: a Apple exige um certificado e um perfil de provisionamento válidos.
+O workflow `.github/workflows/ios-device-ipa.yml` usa um runner macOS do GitHub Actions para compilar o app para iPhone e tentar assinar/exportar um IPA com assinatura automática da Apple. Não é preciso ter um Mac próprio, mas é necessária uma conta Apple Developer com permissões apropriadas.
 
-## Secrets necessários no GitHub
+## 1. Requisito da Apple
 
-No repositório, acesse **Settings → Secrets and variables → Actions → New repository secret** e crie estes quatro secrets:
+Para distribuir pelo TestFlight/App Store, normalmente é necessário participar do Apple Developer Program pago. Uma conta Apple comum não substitui essa associação. O app usa o Bundle ID `com.viniciusy30.quadbrowser.ios`.
 
-- `IOS_CERTIFICATE_BASE64`: conteúdo Base64 de um certificado Apple Distribution exportado como arquivo `.p12`.
-- `IOS_CERTIFICATE_PASSWORD`: senha usada para proteger o arquivo `.p12`.
-- `IOS_PROVISIONING_PROFILE_BASE64`: conteúdo Base64 de um perfil de provisionamento para o Bundle ID `com.viniciusy30.quadbrowser.ios`, compatível com distribuição App Store Connect.
-- `IOS_TEAM_ID`: Team ID da conta Apple Developer.
+## 2. Criar uma chave de API
 
-**Não envie certificado, senha, chave privada ou arquivos de assinatura neste chat nem os coloque no repositório.** Use somente GitHub Secrets. Não use credenciais de outra pessoa sem autorização.
+No App Store Connect, abra **Users and Access → Integrations → App Store Connect API** e crie uma chave com uma função/permissões que permitam administrar os recursos de assinatura necessários. Guarde o arquivo privado `.p8`, o **Key ID** e o **Issuer ID**. A Apple só permite baixar o arquivo privado uma vez; mantenha-o protegido.
 
-## Requisito da Apple
+Se a sua conta não permitir criar uma chave ou gerar certificados/perfis, o titular ou administrador da equipe Apple Developer precisará configurar isso. Não use credenciais de outra pessoa sem autorização.
 
-Para distribuir via TestFlight/App Store, normalmente é necessário participar do Apple Developer Program pago. Um IPA com assinatura App Store Connect não é instalado tocando no arquivo: ele precisa ser enviado ao App Store Connect e distribuído por TestFlight, ou por outro método compatível com o tipo de assinatura/perfil. Uma conta Apple gratuita não substitui esse processo de distribuição.
+## 3. Adicionar GitHub Secrets
 
-## Executar
+No repositório, acesse **Settings → Secrets and variables → Actions → New repository secret** e crie:
 
-Depois de cadastrar os secrets, abra **Actions → Build signed iOS IPA → Run workflow** e selecione a branch `feature/ios-pokeidle-four-accounts`. Se terminar com sucesso, baixe o artefato `CuddlyInvention-iOS-IPA` na página da execução.
+- `IOS_APP_STORE_CONNECT_KEY_BASE64`: o arquivo `.p8` codificado em Base64, sem quebras de linha.
+- `IOS_APP_STORE_CONNECT_KEY_ID`: o Key ID da chave.
+- `IOS_APP_STORE_CONNECT_ISSUER_ID`: o Issuer ID exibido pela Apple.
+- `IOS_TEAM_ID`: Team ID da sua equipe Apple Developer.
 
-Este workflow ainda precisa ser executado com credenciais válidas e testado num iPhone físico. A compilação bem-sucedida não garante que pokeidle.io aceite quatro sessões independentes ao mesmo tempo.
+**Não envie o arquivo .p8, chaves privadas ou credenciais neste chat, e não os coloque no repositório.** Insira-os apenas nos GitHub Secrets. No Android, é possível usar um site/app confiável para converter o arquivo em Base64 localmente, mas evite enviar uma chave privada para sites de terceiros; prefira uma ferramenta local confiável.
+
+## 4. Executar a compilação
+
+Abra **Actions → Build signed iOS IPA → Run workflow** e selecione a branch `feature/ios-pokeidle-four-accounts`. Se o workflow terminar com sucesso, baixe o artefato `CuddlyInvention-iOS-IPA` na página da execução.
+
+O IPA exportado para App Store Connect não é instalado simplesmente abrindo o arquivo. Para uso normal no iPhone, o caminho esperado é enviar/distribuir pelo App Store Connect e instalar via TestFlight. A execução ainda precisa ser feita com credenciais válidas e testada num iPhone físico; a compilação não garante que pokeidle.io aceite quatro sessões independentes simultâneas.
