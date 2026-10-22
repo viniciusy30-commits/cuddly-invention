@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - feature/free-ios-web-quadbrowser
+      - feature/ios-pokeidle-four-accounts
       - main
     paths:
       - "web/**"
