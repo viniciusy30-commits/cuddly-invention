@@ -1,0 +1,38 @@
+{
+  "name": "quad-browser-desktop",
+  "version": "1.0.0",
+  "description": "Versao para Windows do Quad Browser com quatro navegadores independentes.",
+  "main": "src/main.js",
+  "author": "Quad Browser",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^36.3.2",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.quadbrowser.desktop",
+    "productName": "Quad Browser",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": ["nsis"],
+      "artifactName": "Quad-Browser-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
