@@ -1,0 +1,59 @@
+name: Build Quad Pokeidle iOS prototype
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "ios/**"
+      - ".github/workflows/build-quad-pokeidle-ios.yml"
+    branches:
+      - "feature/ios-pokeidle-four-accounts"
+
+permissions:
+  contents: read
+
+jobs:
+  build-simulator:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: feature/ios-pokeidle-four-accounts
+
+      - name: Select Xcode
+        run: |
+          ls /Applications | grep Xcode
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -project QuadPokeidle.xcodeproj \
+            -scheme QuadPokeidle \
+            -sdk iphonesimulator \
+            -configuration Release \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package simulator build for inspection
+        run: |
+          cd ios/build/DerivedData/Build/Products
+          ditto -c -k --sequesterRsrc --keepParent Release-iphonesimulator/QuadPokeidle.app QuadPokeidle-simulator.zip
+
+      - name: Upload simulator build
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuadPokeidle-iOS-Simulator
+          path: ios/build/DerivedData/Build/Products/QuadPokeidle-simulator.zip
+          if-no-files-found: error
+          retention-days: 7
